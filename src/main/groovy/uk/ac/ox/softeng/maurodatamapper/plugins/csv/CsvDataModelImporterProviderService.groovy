@@ -17,7 +17,9 @@
  */
 package uk.ac.ox.softeng.maurodatamapper.plugins.csv
 
+import uk.ac.ox.softeng.maurodatamapper.core.container.Folder
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModel
+import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModelType
 import uk.ac.ox.softeng.maurodatamapper.datamodel.provider.importer.DataModelImporterProviderService
 import uk.ac.ox.softeng.maurodatamapper.security.User
 
@@ -39,7 +41,21 @@ class CsvDataModelImporterProviderService
 
     @Override
     DataModel importDataModel(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
-        return null
+        String modelName = csvDataModelImporterProviderServiceParameters.importFile.fileName
+        if(csvDataModelImporterProviderServiceParameters.modelName) {
+            modelName = csvDataModelImporterProviderServiceParameters.modelName
+        }
+
+        final DataModel dataModel = dataModelService.createAndSaveDataModel(
+                user,
+                Folder.get(csvDataModelImporterProviderServiceParameters.folderId),
+                DataModelType.DATA_ASSET,
+                modelName,
+                null, null, null)
+        CSVImporter csvImporter = new CSVImporter()
+        csvImporter.importSingleFile(dataModel, csvDataModelImporterProviderServiceParameters.importFile.fileContents, csvDataModelImporterProviderServiceParameters)
+        dataModelService.checkImportedDataModelAssociations(user, dataModel)
+        return dataModel
     }
 
     @Override
