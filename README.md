@@ -1,10 +1,13 @@
 # mdm-plugin-csv
 
-[![Build Status](https://jenkins.cs.ox.ac.uk/job/Mauro%20Data%20Mapper%20Plugins/job/mdm-plugin-csv/job/develop/badge/icon)](https://jenkins.cs.ox.ac.uk/job/Mauro%20Data%20Mapper%20Plugins/job/mdm-plugin-csv/job/develop/)
+| Branch | Build Status |
+| ------ | ------------ |
+| master | [![Build Status](https://jenkins.cs.ox.ac.uk/buildStatus/icon?job=Mauro+Data+Mapper+Plugins%2Fmdm-plugin-NAME_OF_PLUGIN%2Fmaster)](https://jenkins.cs.ox.ac.uk/blue/organizations/jenkins/Mauro%20Data%20Mapper%20Plugins%2Fmdm-plugin-NAME_OF_PLUGIN/branches) |
+| develop | [![Build Status](https://jenkins.cs.ox.ac.uk/buildStatus/icon?job=Mauro+Data+Mapper+Plugins%2Fmdm-plugin-NAME_OF_PLUGIN%2Fdevelop)](https://jenkins.cs.ox.ac.uk/blue/organizations/jenkins/Mauro%20Data%20Mapper%20Plugins%2Fmdm-plugin-NAME_OF_PLUGIN/branches) |
 
 ## Requirements
 
-* Java 12 (Java.net)
+* Java 12 (AdoptOpenJDK)
 * Grails 4.0.3+
 * Gradle 6.5+
 

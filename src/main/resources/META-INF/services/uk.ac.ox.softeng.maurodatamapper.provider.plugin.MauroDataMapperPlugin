@@ -1,1 +1,1 @@
-uk.ac.ox.softeng.maurodatamapper.plugins.database.postgres.PostgresDatabasePlugin
+uk.ac.ox.softeng.maurodatamapper.plugins.csv.CsvPlugin
