@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 University of Oxford
+ * Copyright 2020 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,9 @@
 package uk.ac.ox.softeng.maurodatamapper.plugins.csv
 
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModel
-
-import groovy.transform.CompileStatic
-import org.junit.Test
 import uk.ac.ox.softeng.maurodatamapper.plugins.testing.utils.BaseImportPluginTest
 
+import groovy.transform.CompileStatic
 
 @CompileStatic
 class CsvDataModelImporterProviderServiceTest extends BaseImportPluginTest<DataModel, CsvDataModelImporterProviderServiceParameters,
