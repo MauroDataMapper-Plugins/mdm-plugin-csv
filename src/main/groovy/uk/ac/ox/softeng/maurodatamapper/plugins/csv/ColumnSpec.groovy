@@ -27,7 +27,7 @@ import uk.ac.ox.softeng.maurodatamapper.plugins.csv.summarymetadata.IntegerInter
 import uk.ac.ox.softeng.maurodatamapper.plugins.csv.summarymetadata.SummaryMetadataHelper
 
 import grails.util.Pair
-import org.apache.commons.lang.time.DateUtils
+import org.apache.commons.lang3.time.DateUtils
 
 import java.time.Instant
 import java.time.LocalDateTime

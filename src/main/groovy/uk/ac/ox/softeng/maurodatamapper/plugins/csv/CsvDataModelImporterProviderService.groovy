@@ -17,6 +17,7 @@
  */
 package uk.ac.ox.softeng.maurodatamapper.plugins.csv
 
+import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiNotYetImplementedException
 import uk.ac.ox.softeng.maurodatamapper.core.container.Folder
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModel
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModelType
@@ -37,17 +38,17 @@ class CsvDataModelImporterProviderService
     }
 
     @Override
-    DataModel importDataModel(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
+    DataModel importModel(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
         String modelName = csvDataModelImporterProviderServiceParameters.importFile.fileName
-        if(csvDataModelImporterProviderServiceParameters.modelName) {
+        if (csvDataModelImporterProviderServiceParameters.modelName) {
             modelName = csvDataModelImporterProviderServiceParameters.modelName
         }
 
         final DataModel dataModel = dataModelService.createAndSaveDataModel(
-                user,
-                Folder.get(csvDataModelImporterProviderServiceParameters.folderId),
-                DataModelType.DATA_ASSET,
-                modelName,
+            user,
+            Folder.get(csvDataModelImporterProviderServiceParameters.folderId),
+            DataModelType.DATA_ASSET,
+            modelName,
                 null, null, null)
         CSVImporter csvImporter = new CSVImporter()
         csvImporter.importSingleFile(dataModel, csvDataModelImporterProviderServiceParameters.importFile.fileContents, csvDataModelImporterProviderServiceParameters)
@@ -56,8 +57,8 @@ class CsvDataModelImporterProviderService
     }
 
     @Override
-    List<DataModel> importDataModels(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
-        return null
+    List<DataModel> importModels(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
+        throw new ApiNotYetImplementedException('CDMIPS', 'importModels')
     }
 
     @Override
