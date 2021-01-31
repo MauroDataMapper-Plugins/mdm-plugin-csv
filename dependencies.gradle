@@ -1,6 +1,6 @@
 dependencies {
     implementation group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-core', version: mdmCoreVersion
-    implementation group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-datamodel', version: mdmPluginDataModelVersion
+    implementation group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-datamodel', version: mdmCoreVersion
 
     implementation group: 'org.codehaus.groovy', name: 'groovy-all', version: groovyVersion
     implementation group: 'org.slf4j', name: 'slf4j-api', version: slf4jVersion
@@ -9,4 +9,10 @@ dependencies {
 
     testImplementation group: 'uk.ac.ox.softeng.maurodatamapper.plugins', name: 'mdm-plugin-testing-utils', version: mdmPluginTestUtilsVersion
     compile 'com.opencsv:opencsv:5.1'
+
+    // Postgres database
+    runtime group: 'org.flywaydb', name: 'flyway-core'
+    runtime "org.hibernate:hibernate-jcache"
+    runtime group: 'org.ehcache', name: 'ehcache'
+    runtime group: 'org.postgresql', name: 'postgresql'
 }
