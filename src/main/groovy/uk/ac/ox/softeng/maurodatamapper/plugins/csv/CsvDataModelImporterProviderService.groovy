@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 University of Oxford
+ * Copyright 2020 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
  */
 package uk.ac.ox.softeng.maurodatamapper.plugins.csv
 
+import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiNotYetImplementedException
+import uk.ac.ox.softeng.maurodatamapper.core.container.Folder
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModel
+import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModelType
 import uk.ac.ox.softeng.maurodatamapper.datamodel.provider.importer.DataModelImporterProviderService
 import uk.ac.ox.softeng.maurodatamapper.security.User
-
-import java.sql.Connection
-import java.sql.PreparedStatement
 
 class CsvDataModelImporterProviderService
     extends DataModelImporterProviderService<CsvDataModelImporterProviderServiceParameters> {
@@ -38,13 +38,27 @@ class CsvDataModelImporterProviderService
     }
 
     @Override
-    DataModel importDataModel(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
-        return null
+    DataModel importModel(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
+        String modelName = csvDataModelImporterProviderServiceParameters.importFile.fileName
+        if (csvDataModelImporterProviderServiceParameters.modelName) {
+            modelName = csvDataModelImporterProviderServiceParameters.modelName
+        }
+
+        final DataModel dataModel = dataModelService.createAndSaveDataModel(
+            user,
+            Folder.get(csvDataModelImporterProviderServiceParameters.folderId),
+            DataModelType.DATA_ASSET,
+            modelName,
+                null, null, null)
+        CSVImporter csvImporter = new CSVImporter()
+        csvImporter.importSingleFile(dataModel, csvDataModelImporterProviderServiceParameters.importFile.fileContents, csvDataModelImporterProviderServiceParameters)
+        dataModelService.checkImportedDataModelAssociations(user, dataModel)
+        return dataModel
     }
 
     @Override
-    List<DataModel> importDataModels(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
-        return null
+    List<DataModel> importModels(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
+        throw new ApiNotYetImplementedException('CDMIPS', 'importModels')
     }
 
     @Override

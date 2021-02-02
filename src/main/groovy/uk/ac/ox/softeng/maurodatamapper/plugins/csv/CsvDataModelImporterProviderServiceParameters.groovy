@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 University of Oxford
+ * Copyright 2020 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,5 +37,68 @@ class CsvDataModelImporterProviderServiceParameters extends DataModelImporterPro
             )
     )
     FileParameter importFile
+
+    @ImportParameterConfig(
+            displayName = 'Maximum Enumerations',
+            description = 'The maximum number of unique values to be interpreted as a defined enumeration',
+            order = 4,
+            optional = true,
+            group = @ImportGroupConfig(
+                    name = 'Configuration',
+                    order = 2
+            )
+    )
+    Integer maxEnumerations = 20
+
+    @ImportParameterConfig(
+            displayName = 'Generate Summary Metadata',
+            description = 'Whether to produce data distribution charts for column values',
+            order = 3,
+            group = @ImportGroupConfig(
+                    name = 'Configuration',
+                    order = 2
+            )
+    )
+    Boolean generateSummaryMetadata = true
+
+    @ImportParameterConfig(
+            displayName = 'Detect Enumerations',
+            description = 'Whether to treat columns with small numbers of unique values as enumerations',
+            order = 2,
+            group = @ImportGroupConfig(
+                    name = 'Configuration',
+                    order = 2
+            )
+    )
+    Boolean detectEnumerations = true
+
+    @ImportParameterConfig(
+            displayName = 'Detect Types',
+            description = 'Whether to detect appropriate types from the values in each column',
+            order = 1,
+            group = @ImportGroupConfig(
+                    name = 'Configuration',
+                    order = 2
+            )
+    )
+    Boolean detectTypes = true
+
+    // These parameters are not really used yet
+    BigDecimal tooUniqueValue = 1.5
+    Integer smallestSummaryValue = 10
+    Boolean detectTerminologies = false
+    Boolean testOnly = false
+
+    void setDefaults() {
+        if(!maxEnumerations) {
+            maxEnumerations = 20
+        }
+        if(!tooUniqueValue) {
+            tooUniqueValue = 1.5
+        }
+        if(!smallestSummaryValue) {
+            smallestSummaryValue = 10
+        }
+    }
 
 }
