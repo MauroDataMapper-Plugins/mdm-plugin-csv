@@ -21,6 +21,8 @@ import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModel
 import uk.ac.ox.softeng.maurodatamapper.plugins.testing.utils.BaseImportPluginTest
 
 import groovy.transform.CompileStatic
+import org.junit.Ignore
+import org.junit.Test
 
 @CompileStatic
 class CsvDataModelImporterProviderServiceTest extends BaseImportPluginTest<DataModel, CsvDataModelImporterProviderServiceParameters,
@@ -30,5 +32,11 @@ class CsvDataModelImporterProviderServiceTest extends BaseImportPluginTest<DataM
     @Override
     DataModel saveDomain(DataModel domain) {
         return null
+    }
+
+    @Test
+    @Ignore('Not written yet')
+    void testImportSimpleCsv() {
+        assert false
     }
 }
