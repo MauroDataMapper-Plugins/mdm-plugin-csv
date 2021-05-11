@@ -15,38 +15,27 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package uk.ac.ox.softeng.maurodatamapper.plugins.csv
+package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer.parameter
 
-import uk.ac.ox.softeng.maurodatamapper.core.provider.importer.parameter.FileParameter
+
 import uk.ac.ox.softeng.maurodatamapper.core.provider.importer.parameter.config.ImportGroupConfig
 import uk.ac.ox.softeng.maurodatamapper.core.provider.importer.parameter.config.ImportParameterConfig
-import uk.ac.ox.softeng.maurodatamapper.datamodel.provider.importer.parameter.DataModelImporterProviderServiceParameters
+import uk.ac.ox.softeng.maurodatamapper.datamodel.provider.importer.parameter.DataModelFileImporterProviderServiceParameters
 
 import groovy.util.logging.Slf4j
 
 @Slf4j
-class CsvDataModelImporterProviderServiceParameters extends DataModelImporterProviderServiceParameters {
+class CsvDataModelImporterProviderServiceParameters extends DataModelFileImporterProviderServiceParameters {
 
     @ImportParameterConfig(
-            displayName = 'CSV File',
-            description = 'The csv file containing the data to be imported',
-            order = -1,
-            group = @ImportGroupConfig(
-                    name = 'Source',
-                    order = 1
-            )
-    )
-    FileParameter importFile
-
-    @ImportParameterConfig(
-            displayName = 'Maximum Enumerations',
-            description = 'The maximum number of unique values to be interpreted as a defined enumeration',
-            order = 4,
-            optional = true,
-            group = @ImportGroupConfig(
-                    name = 'Configuration',
-                    order = 2
-            )
+        displayName = 'Maximum Enumerations',
+        description = 'The maximum number of unique values to be interpreted as a defined enumeration',
+        order = 4,
+        optional = true,
+        group = @ImportGroupConfig(
+            name = 'Configuration',
+            order = 2
+        )
     )
     Integer maxEnumerations = 20
 

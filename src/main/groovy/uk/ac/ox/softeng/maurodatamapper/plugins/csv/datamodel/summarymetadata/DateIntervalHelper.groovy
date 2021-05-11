@@ -15,7 +15,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package uk.ac.ox.softeng.maurodatamapper.plugins.csv.summarymetadata
+package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.summarymetadata
 
 import grails.util.Pair
 
@@ -29,16 +29,6 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 class DateIntervalHelper {
-
-
-    static void main(String[] args) {
-
-        DateIntervalHelper dih = new DateIntervalHelper(LocalDateTime.parse("1982-09-18T00:15:30"), LocalDateTime.now())
-        //System.err.println(dih.getFirstIntervalStart())
-        dih.intervals.each { p ->
-            System.err.println("""${p.aValue} - ${p.bValue}""")
-        }
-    }
 
     LocalDateTime minDate, maxDate
     Duration differenceDuration

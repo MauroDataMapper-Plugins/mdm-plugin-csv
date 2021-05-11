@@ -15,20 +15,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package uk.ac.ox.softeng.maurodatamapper.plugins.csv.summarymetadata
+package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.summarymetadata
 
 import grails.util.Pair
 
 class DecimalIntervalHelper {
-
-
-    static void main(String[] args) {
-
-        DecimalIntervalHelper decimalIntervalHelper = new DecimalIntervalHelper(0.65, 3)
-        decimalIntervalHelper.intervals.each { interval ->
-            System.err.println(interval.key)
-        }
-    }
 
     BigDecimal minNum, maxNum
     BigDecimal difference
