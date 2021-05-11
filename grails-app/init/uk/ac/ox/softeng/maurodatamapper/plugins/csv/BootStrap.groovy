@@ -17,20 +17,10 @@
  */
 package uk.ac.ox.softeng.maurodatamapper.plugins.csv
 
-import uk.ac.ox.softeng.maurodatamapper.provider.plugin.AbstractMauroDataMapperPlugin
+class BootStrap {
 
-class CsvPlugin extends AbstractMauroDataMapperPlugin {
-
-    @Override
-    String getName() {
-        'Plugin : CSV'
+    def init = {servletContext ->
     }
-
-    @Override
-    Closure doWithSpring() {
-        {->
-            csvDataModelImporterProviderService CsvDataModelImporterProviderService
-
-        }
+    def destroy = {
     }
 }
