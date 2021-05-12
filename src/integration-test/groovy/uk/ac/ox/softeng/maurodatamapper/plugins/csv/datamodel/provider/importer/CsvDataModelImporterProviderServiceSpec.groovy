@@ -32,6 +32,7 @@ import grails.testing.spock.OnceBefore
 import grails.util.BuildSettings
 import grails.validation.ValidationException
 import groovy.util.logging.Slf4j
+import org.junit.Assert
 import spock.lang.Shared
 
 import java.nio.file.Files
@@ -86,6 +87,83 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
         dataClass.dataElements.size() == 2
         dataClass.dataElements.any { it.label == 'Name' && it.dataType.label == 'Text' }
         dataClass.dataElements.any { it.label == 'Age' && it.dataType.label == 'Number' }
+    }
+
+    def 'Test importing Lauth.csv'() {
+        given:
+        setupDomainData()
+
+        List<String> headers = ['Organisation Code', 'Name', 'National Grouping', 'High Level Health Geography', 'Address Line 1', 'Address Line 2',
+                                'Address Line 3', 'Address Line 4', 'Address Line 5', 'Postcode', 'Open Date', 'Close Date', 'Null',
+                                'Organisation Sub-Type Code', 'Null',
+                                'Null', 'Null', 'Null', 'Null', 'Null', 'Null', 'Amended Record Indicator', 'Null', 'Null', 'Null', 'Null', 'Null']
+
+        def parameters = new CsvDataModelImporterProviderServiceParameters(
+            importFile: new FileParameter('Lauth.csv', 'csv', loadBytes('Lauth.csv')),
+            folderId: folder.id,
+            firstRowIsHeader: false,
+            headers: headers.join(',')
+        )
+        when:
+        DataModel dataModel = importAndValidateModel('Lauth', parameters)
+
+        then:
+        dataModel
+        dataModel.label == 'Lauth'
+        dataModel.dataTypes.size() == 13
+        dataModel.primitiveTypes.size() == 8
+        dataModel.primitiveTypes.size() == 8
+        dataModel.enumerationTypes.size() == 5
+        dataModel.dataClasses.size() == 1
+
+        when:
+        DataClass dataClass = dataModel.dataClasses.first()
+
+        then:
+        dataClass.label == 'CSV fields'
+        dataClass.dataElements.size() == 27
+        headers.eachWithIndex { h, i ->
+            String l = h == 'Null' && i > 12 ? "Null($i)" : h
+            Assert.assertTrue "$l exists", dataClass.dataElements.any { it.label == l }
+        }
+    }
+
+    def 'Test importing Postcode-districts.csv'() {
+        given:
+        setupDomainData()
+
+        def parameters = new CsvDataModelImporterProviderServiceParameters(
+            importFile: new FileParameter('Postcode-districts.csv', 'csv', loadBytes('Postcode-districts.csv')),
+            folderId: folder.id
+        )
+        when:
+        DataModel dataModel = importAndValidateModel('Postcode-districts', parameters)
+
+        then:
+        dataModel
+        dataModel.label == 'Postcode-districts'
+        dataModel.dataTypes.size() == 8
+        dataModel.dataClasses.size() == 1
+
+        when:
+        DataClass dataClass = dataModel.dataClasses.first()
+
+        then:
+        dataClass.label == 'CSV fields'
+        dataClass.dataElements.size() == 13
+        dataClass.dataElements.any { it.label == 'Postcode' && it.dataType.label == 'Text' }
+        dataClass.dataElements.any { it.label == 'Latitude' && it.dataType.label == 'Decimal' }
+        dataClass.dataElements.any { it.label == 'Longitude' && it.dataType.label == 'Decimal' }
+        dataClass.dataElements.any { it.label == 'Easting' && it.dataType.label == 'Number' }
+        dataClass.dataElements.any { it.label == 'Northing' && it.dataType.label == 'Number' }
+        dataClass.dataElements.any { it.label == 'Grid Reference' && it.dataType.label == 'Text' }
+        dataClass.dataElements.any { it.label == 'Town/Area' && it.dataType.label == 'Text' }
+        dataClass.dataElements.any { it.label == 'Region' && it.dataType.label == 'Text' }
+        dataClass.dataElements.any { it.label == 'Postcodes' && it.dataType.label == 'Number' }
+        dataClass.dataElements.any { it.label == 'Active postcodes' && it.dataType.label == 'Number' }
+        dataClass.dataElements.any { it.label == 'Population' && it.dataType.label == 'Number' }
+        dataClass.dataElements.any { it.label == 'Households' && it.dataType.label == 'Number' }
+        dataClass.dataElements.any { it.label == 'Nearby districts' && it.dataType.label == 'Text' }
     }
 
     byte[] loadBytes(String filename) {

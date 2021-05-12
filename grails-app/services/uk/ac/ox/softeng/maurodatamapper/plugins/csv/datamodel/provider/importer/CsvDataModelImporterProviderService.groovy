@@ -30,16 +30,10 @@ import uk.ac.ox.softeng.maurodatamapper.datamodel.item.datatype.DataTypeService
 import uk.ac.ox.softeng.maurodatamapper.datamodel.item.datatype.EnumerationType
 import uk.ac.ox.softeng.maurodatamapper.datamodel.item.datatype.PrimitiveType
 import uk.ac.ox.softeng.maurodatamapper.datamodel.provider.importer.DataModelImporterProviderService
-import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.ColumnSpec
+import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.ColumnData
 import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer.parameter.CsvDataModelImporterProviderServiceParameters
+import uk.ac.ox.softeng.maurodatamapper.plugins.csv.reader.CsvReader
 import uk.ac.ox.softeng.maurodatamapper.security.User
-
-import com.opencsv.CSVParser
-import com.opencsv.CSVParserBuilder
-import com.opencsv.CSVReader
-import com.opencsv.CSVReaderBuilder
-import com.opencsv.CSVReaderHeaderAware
-import com.opencsv.CSVReaderHeaderAwareBuilder
 
 class CsvDataModelImporterProviderService
     extends DataModelImporterProviderService<CsvDataModelImporterProviderServiceParameters> {
@@ -47,7 +41,7 @@ class CsvDataModelImporterProviderService
     AuthorityService authorityService
     DataTypeService dataTypeService
 
-    static char[] separators = [',', '|', '\t', ';'] as char[]
+
 
     @Override
     String getDisplayName() {
@@ -65,20 +59,20 @@ class CsvDataModelImporterProviderService
     }
 
     @Override
-    List<DataModel> importModels(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
+    List<DataModel> importModels(User currentUser, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
         throw new ApiNotYetImplementedException('CSV03', 'importModels')
     }
 
     @Override
-    DataModel importModel(User user, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
+    DataModel importModel(User currentUser, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
         csvDataModelImporterProviderServiceParameters.setDefaults()
         DataModel dataModel = importSingleFile(csvDataModelImporterProviderServiceParameters)
-        dataModelService.checkImportedDataModelAssociations(user, dataModel)
+        dataModelService.checkImportedDataModelAssociations(currentUser, dataModel)
         dataModel
     }
 
     DataModel importSingleFile(CsvDataModelImporterProviderServiceParameters parameters) {
-        Map<String, ColumnSpec> columns = getColumnDefinitions(parameters.importFile.fileContents, parameters)
+        Map<String, ColumnData> columns = getColumnDefinitions(parameters)
 
         if (!columns) {
             throw new ApiBadRequestException('CSV02', "Nothing to load into DataModel from file [${parameters.importFile.fileName}]")
@@ -119,25 +113,26 @@ class CsvDataModelImporterProviderService
         dataModel
     }
 
-    Map<String, ColumnSpec> getColumnDefinitions(byte[] fileContents, CsvDataModelImporterProviderServiceParameters parameters) {
-        CSVReader csvReader = getCSVReader(fileContents, parameters.importFile.fileName)
-        Map<String, String> valuesMap = csvReader.readMap()
-        Map<String, ColumnSpec> columns = valuesMap.keySet().collectEntries { header ->
-            [header, new ColumnSpec(header, parameters)]
+    Map<String, ColumnData> getColumnDefinitions(CsvDataModelImporterProviderServiceParameters parameters) {
+        CsvReader csvReader = new CsvReader(parameters.importFile, parameters.firstRowIsHeader, parameters.headers?.split(','))
+        Map<String, ColumnData> columns = csvReader.getHeaders().collectEntries { header ->
+            [header, new ColumnData(header, parameters)]
         }
+        Map<String, String> row = csvReader.readRow()
+
         int skippedRowCount = 0
         boolean skippedLast = false
-        while (valuesMap) {
+        while (row) {
             if (!skippedLast) {
                 columns.each { header, column ->
-                    column.addValue(valuesMap[header])
+                    column.addValue(row[header])
                 }
             }
             try {
-                valuesMap = csvReader.readMap()
+                row = csvReader.readRow()
                 skippedLast = false
             } catch (Exception e) {
-                log.debug('Skipping row because of exception {}', e.getMessage())
+                log.debug('Skipping row because of exception: {}', e.getMessage())
                 skippedLast = true
                 skippedRowCount++
             }
@@ -146,40 +141,6 @@ class CsvDataModelImporterProviderService
             log.warn('Skipped {} rows', skippedRowCount)
         }
         columns
-    }
-
-    CSVReaderHeaderAware getCSVReader(byte[] fileContents, String filename) {
-        CSVReader basicCSVReader
-        int maxColumns = 0
-        Character bestSeparator = null
-        separators.each { sep ->
-            CSVParser parser =
-                new CSVParserBuilder().withSeparator(sep).build()
-            basicCSVReader = new CSVReaderBuilder(new InputStreamReader(new ByteArrayInputStream(fileContents)))
-                .withCSVParser(parser)
-                .build()
-            try {
-                int thisSize = basicCSVReader.readNext().length
-                if (thisSize > maxColumns) {
-                    bestSeparator = sep
-                    maxColumns = thisSize
-                }
-            } catch (Exception ignored) {
-                return
-            }
-        }
-        if (!bestSeparator) {
-            bestSeparator = separators[0]
-        }
-        if (maxColumns == 0) {
-            throw new ApiBadRequestException('CSV01', "Cannot parse file [{${filename}]")
-        }
-        CSVParser parser =
-            new CSVParserBuilder().withSeparator(bestSeparator.charValue()).build()
-        ((CSVReaderHeaderAwareBuilder) new CSVReaderHeaderAwareBuilder(
-            new InputStreamReader(new ByteArrayInputStream(fileContents)))
-            .withCSVParser(parser))
-            .build()
     }
 
     Map<String, DataType> getPrimitiveDataTypes(CsvDataModelImporterProviderServiceParameters parameters) {

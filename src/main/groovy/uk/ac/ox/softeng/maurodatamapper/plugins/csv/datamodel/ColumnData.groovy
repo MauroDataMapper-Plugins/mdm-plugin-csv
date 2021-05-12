@@ -36,24 +36,22 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 
 @Slf4j
-class ColumnSpec {
+class ColumnData {
 
     static String[] dateFormats = ["yyyyMMdd", "yyy-MM-dd", "M/y", "dd/MM/yyyy", "M/d/y", "d-M-y", "M-d-y",
                                    "dd/MM/yyyy hh:mm:ss", "yyy-MM-dd hh:mm:ss"]
 
-    String headerName
-    CsvDataModelImporterProviderServiceParameters csvImportOptions
-    Set<String> possibleDataTypes = new HashSet<String>()
-    Map<Object, Integer> distinctValues = [:]
-    Object maxValue
-    Object minValue
-    Boolean optional = false
+    private String headerName
+    private CsvDataModelImporterProviderServiceParameters csvImportOptions
+    private Set<String> possibleDataTypes = new HashSet<String>()
+    private Map<Object, Integer> distinctValues = [:]
+    private Boolean optional = false
 
     // for Summary Metadata
-    List<Object> typedValues = []
-    Map<String, Integer> valueDistribution = [:]
+    private List<Object> typedValues = []
+    private Map<String, Integer> valueDistribution = [:]
 
-    ColumnSpec(String header, CsvDataModelImporterProviderServiceParameters options) {
+    ColumnData(String header, CsvDataModelImporterProviderServiceParameters options) {
         this.headerName = header
         this.csvImportOptions = options
         if (!csvImportOptions.detectTypes) {
@@ -81,86 +79,25 @@ class ColumnSpec {
                 distinctValues[typedValue] = 1
             }
         }
-        if (csvImportOptions.generateSummaryMetadata) {
-            if (typedValue && maxValue && typedValue.class != maxValue.class) {
-                typedValue = typedValue.toString()
-            } else {
-                if (typedValue && typedValue > maxValue || !maxValue) {
-                    maxValue = typedValue
-                }
-                if (typedValue && typedValue < minValue || !minValue) {
-                    minValue = typedValue
-                }
 
-            }
-        }
         if (csvImportOptions.generateSummaryMetadata) {
             typedValues.add(typedValue)
         }
     }
 
-    Object[] tableDataRow() {
-        //return [headerName, possibleDataTypes, "C", "D", "E", "F"]
-        String distinctVals = ">" + csvImportOptions.maxEnumerations
-        if (distinctValues.size() <= csvImportOptions.maxEnumerations) {
-            distinctVals = distinctValues.size()
-        }
-        return [
-            headerName,
-            possibleDataTypes,
-            "" + optional,
-            distinctVals,
-            "" + minValue,
-            "" + maxValue
-        ]
-    }
-
-    static String[] tableHeaderRow() {
-        return [
-            "Column name",
-            "Possible types",
-            "Optional",
-            "Distinct values",
-            "Min value",
-            "Max value"
-        ]
-    }
-
-
-    static Object getTypedValue(String input) {
-        if (!input || input == "") {
-            return null
-        }
-        if (input.isInteger()) {
-            return input.toInteger()
-        }
-        if (input.isBigDecimal()) {
-            return input.toBigDecimal()
-        }
-        try {
-            Date date = DateUtils.parseDate(input, dateFormats)
-            return date
-        } catch (Exception ignored) { /* Do nothing */ }
-
-        return input
-    }
-
     int getMinMultiplicity() {
-        if (optional) {
-            return 0
-        }
-        return 1
+        optional ? 0 : 1
     }
 
     int getMaxMultiplicity() {
-        return 1
+        1
     }
 
     DataType getDataType(Map<String, DataType> dataTypes) {
         if (csvImportOptions.detectEnumerations &&
             distinctValues.size() <= csvImportOptions.maxEnumerations &&
             possibleDataTypes.size() == 1 &&
-            (possibleDataTypes.first() == "String" || possibleDataTypes.first() == "Integer") &&
+            (possibleDataTypes.first() == 'String' || possibleDataTypes.first() == 'Integer') &&
             averageDistinctValues() >= csvImportOptions.tooUniqueValue) {
             return getEnumeratedDataType()
         }
@@ -182,40 +119,44 @@ class ColumnSpec {
     }
 
     String decideDataType() {
-        if (possibleDataTypes.size() == 0) {
-            return "String"
+        if (!possibleDataTypes) {
+            return 'String'
         }
+
         if (possibleDataTypes.size() == 1) {
             return possibleDataTypes.first()
         }
-        if (possibleDataTypes.size() == 2) {
-            if (possibleDataTypes.containsAll("Integer", "Decimal")) {
-                return "Decimal"
-            }
-            if (possibleDataTypes.containsAll("Date", "DateTime")) {
-                return "DateTime"
-            }
+
+        // Ensure that numeric accuracy doesn't get reduced
+        if (possibleDataTypes.every { it in ['Integer', 'Decimal', 'BigDecimal'] }) {
+            return 'Decimal'
         }
+
+        // Ensure that datetime accuracy doesn't get reduced
+        if (possibleDataTypes.every { it in ['Date', 'DateTime'] }) {
+            return 'DateTime'
+        }
+
         log.debug('{} possible datatypes defaulting to [String]', possibleDataTypes)
         'String'
-
     }
 
     SummaryMetadata calculateSummaryMetadata() {
 
-        if (decideDataType() == "Date") {
+        if (decideDataType() == 'Date') {
             calculateDateSummaryMetadata()
-        } else if (decideDataType() == "Decimal") {
+        } else if (decideDataType() == 'Decimal') {
             calculateDecimalSummaryMetadataByRange()
-        } else if (decideDataType() == "Integer" && distinctValues.size() <= csvImportOptions.maxEnumerations) {
+        } else if (decideDataType() == 'Integer' && distinctValues.size() <= csvImportOptions.maxEnumerations) {
             calculateIntegerSummaryMetadataByDistinctValues()
-        } else if (decideDataType() == "Integer") {
+        } else if (decideDataType() == 'Integer') {
             calculateIntegerSummaryMetadataByRange()
-        } else if (decideDataType() == "String" && distinctValues.size() <= csvImportOptions.maxEnumerations) {
+        } else if (decideDataType() == 'String' && distinctValues.size() <= csvImportOptions.maxEnumerations) {
             calculateStringSummaryMetadata()
         } else {
             return null
         }
+        //TODO Can't actually get here
         if (csvImportOptions.testOnly) {
             return null
         }
@@ -256,7 +197,6 @@ class ColumnSpec {
         }
     }
 
-
     BigDecimal averageDistribution() {
         log.trace(this.headerName)
         log.trace('{}', valueDistribution)
@@ -278,10 +218,14 @@ class ColumnSpec {
         }
     }
 
-    static LocalDateTime convertToLocalDateTimeViaMillisecond(Date dateToConvert) {
-        return Instant.ofEpochMilli(dateToConvert.getTime())
-            .atZone(ZoneId.systemDefault())
-            .toLocalDateTime()
+    Object getMinValue() {
+        // This assumes all typed values are of the same equivalent type
+        typedValues.findAll().min()
+    }
+
+    Object getMaxValue() {
+        // This assumes all typed values are of the same equivalent type
+        typedValues.findAll().max()
     }
 
     void calculateDateSummaryMetadata() {
@@ -386,6 +330,56 @@ class ColumnSpec {
         }
     }
 
+    static Object getTypedValue(String input) {
+        if (!input) {
+            return null
+        }
+        if (input.isInteger()) {
+            return input.toInteger()
+        }
+        if (input.isBigDecimal()) {
+            return input.toBigDecimal()
+        }
+        try {
+            Date date = DateUtils.parseDate(input, dateFormats)
+            return date
+        } catch (Exception ignored) { /* Do nothing */ }
+
+        input
+    }
+
+    static LocalDateTime convertToLocalDateTimeViaMillisecond(Date dateToConvert) {
+        return Instant.ofEpochMilli(dateToConvert.getTime())
+            .atZone(ZoneId.systemDefault())
+            .toLocalDateTime()
+    }
+
+    Object[] tableDataRow() {
+        //return [headerName, possibleDataTypes, "C", "D", "E", "F"]
+        String distinctVals = ">" + csvImportOptions.maxEnumerations
+        if (distinctValues.size() <= csvImportOptions.maxEnumerations) {
+            distinctVals = distinctValues.size()
+        }
+        return [
+            headerName,
+            possibleDataTypes,
+            "" + optional,
+            distinctVals,
+            "" + minValue,
+            "" + maxValue
+        ]
+    }
+
+    static String[] tableHeaderRow() {
+        return [
+            "Column name",
+            "Possible types",
+            "Optional",
+            "Distinct values",
+            "Min value",
+            "Max value"
+        ]
+    }
 
 }
 
