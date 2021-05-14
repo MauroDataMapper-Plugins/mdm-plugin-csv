@@ -38,8 +38,10 @@ import java.time.ZoneId
 @Slf4j
 class ColumnData {
 
-    static String[] dateFormats = ["yyyyMMdd", "yyy-MM-dd", "M/y", "dd/MM/yyyy", "M/d/y", "d-M-y", "M-d-y",
-                                   "dd/MM/yyyy hh:mm:ss", "yyy-MM-dd hh:mm:ss"]
+    static String[] dateFormats = ['yyyyMMdd', 'yyy-MM-dd', 'M/y', 'dd/MM/yyyy', 'M/d/y', 'd-M-y', 'M-d-y',
+                                   'dd/MM/yyyy hh:mm:ss', 'yyy-MM-dd hh:mm:ss']
+
+    static String NULL_VALUE_KEY = 'NULL'
 
     private String headerName
     private CsvDataModelImporterProviderServiceParameters csvImportOptions
@@ -49,13 +51,13 @@ class ColumnData {
 
     // for Summary Metadata
     private List<Object> typedValues = []
-    private Map<String, Integer> valueDistribution = [:]
+    private Map<String, Integer> valueDistribution
 
     ColumnData(String header, CsvDataModelImporterProviderServiceParameters options) {
         this.headerName = header
         this.csvImportOptions = options
         if (!csvImportOptions.detectTypes) {
-            possibleDataTypes.add("String")
+            possibleDataTypes.add('String')
         }
     }
 
@@ -95,7 +97,7 @@ class ColumnData {
 
     DataType getDataType(Map<String, DataType> dataTypes) {
         if (csvImportOptions.detectEnumerations &&
-            distinctValues.size() <= csvImportOptions.maxEnumerations &&
+            isPotentialEnumeration() &&
             possibleDataTypes.size() == 1 &&
             (possibleDataTypes.first() == 'String' || possibleDataTypes.first() == 'Integer') &&
             averageDistinctValues() >= csvImportOptions.tooUniqueValue) {
@@ -106,7 +108,7 @@ class ColumnData {
 
     DataType getEnumeratedDataType() {
         EnumerationType enumerationType = new EnumerationType(label: headerName)
-        distinctValues.keySet().sort().each { value ->
+        distinctValues.keySet().sort().each {value ->
             if (value) {
                 enumerationType.addToEnumerationValues(new EnumerationValue(key: value, value: value))
             }
@@ -116,6 +118,10 @@ class ColumnData {
 
     DataType getPrimitiveDataType(Map<String, DataType> dataTypes) {
         dataTypes.size() > 1 ? dataTypes[decideDataType()] : dataTypes.String
+    }
+
+    boolean isPotentialEnumeration() {
+        distinctValues.size() <= csvImportOptions.maxEnumerations
     }
 
     String decideDataType() {
@@ -128,12 +134,12 @@ class ColumnData {
         }
 
         // Ensure that numeric accuracy doesn't get reduced
-        if (possibleDataTypes.every { it in ['Integer', 'Decimal', 'BigDecimal'] }) {
+        if (possibleDataTypes.every {it in ['Integer', 'Decimal', 'BigDecimal']}) {
             return 'Decimal'
         }
 
         // Ensure that datetime accuracy doesn't get reduced
-        if (possibleDataTypes.every { it in ['Date', 'DateTime'] }) {
+        if (possibleDataTypes.every {it in ['Date', 'DateTime']}) {
             return 'DateTime'
         }
 
@@ -147,12 +153,12 @@ class ColumnData {
             calculateDateSummaryMetadata()
         } else if (decideDataType() == 'Decimal') {
             calculateDecimalSummaryMetadataByRange()
-        } else if (decideDataType() == 'Integer' && distinctValues.size() <= csvImportOptions.maxEnumerations) {
-            calculateIntegerSummaryMetadataByDistinctValues()
+        } else if (decideDataType() == 'Integer' && isPotentialEnumeration()) {
+            calculateSummaryMetadataByDistinctValues()
         } else if (decideDataType() == 'Integer') {
             calculateIntegerSummaryMetadataByRange()
-        } else if (decideDataType() == 'String' && distinctValues.size() <= csvImportOptions.maxEnumerations) {
-            calculateStringSummaryMetadata()
+        } else if (decideDataType() == 'String' && isPotentialEnumeration()) {
+            calculateSummaryMetadataByDistinctValues()
         } else {
             // Not possible to calculate SM for other types
             return null
@@ -167,12 +173,12 @@ class ColumnData {
             }
             hideSmallValues(csvImportOptions.smallestSummaryValue)
         }
-        return SummaryMetadataHelper.createSummaryMetadataFromMap(headerName, "Value Distribution", valueDistribution)
+        return SummaryMetadataHelper.createSummaryMetadataFromMap(headerName, 'Value Distribution', valueDistribution)
 
     }
 
     void hideSmallValues(Integer smallestValue) {
-        valueDistribution.each { key, value ->
+        valueDistribution.each {key, value ->
             if (value != 0 && value < smallestValue) {
                 valueDistribution[key] = smallestValue
             }
@@ -180,15 +186,13 @@ class ColumnData {
     }
 
     BigDecimal averageDistinctValues() {
-        Map<Object, Integer> nonTrivialValues = distinctValues
-            .findAll { key, value ->
-                value > 0 && key
-            }
+        Map<Object, Integer> nonTrivialValues = distinctValues.findAll {key, value ->
+            key != null && value > 0
+        }
         log.trace('{}', nonTrivialValues)
         log.trace('{}', nonTrivialValues.size())
         if (nonTrivialValues.size() > 0) {
-            BigDecimal total = (BigDecimal) nonTrivialValues
-                .collect { key, value -> value }.sum()
+            BigDecimal total = (BigDecimal) nonTrivialValues.collect {key, value -> value}.sum()
             log.trace('{}', total)
             BigDecimal average = total / nonTrivialValues.size()
             log.trace('{}', average)
@@ -201,15 +205,14 @@ class ColumnData {
     BigDecimal averageDistribution() {
         log.trace(this.headerName)
         log.trace('{}', valueDistribution)
-        Map<String, Integer> nonTrivialValues = valueDistribution
-            .findAll { key, value ->
-                value > 0 && !key.equalsIgnoreCase("null")
-            }
+        Map<String, Integer> nonTrivialValues = valueDistribution.findAll {key, value ->
+            value > 0 && !key.equalsIgnoreCase(NULL_VALUE_KEY)
+        }
         log.trace('{}', nonTrivialValues)
         log.trace('{}', nonTrivialValues.size())
         if (nonTrivialValues.size() > 0) {
             BigDecimal total = (BigDecimal) nonTrivialValues
-                .collect { key, value -> value }.sum()
+                .collect {key, value -> value}.sum()
             log.trace('{}', total)
             BigDecimal average = total / nonTrivialValues.size()
             log.trace('{}', average)
@@ -236,19 +239,14 @@ class ColumnData {
         DateIntervalHelper dateIntervalHelper = new DateIntervalHelper(ldtMinValue, ldtMaxValue)
         Map<String, Pair<LocalDateTime, LocalDateTime>> intervals = dateIntervalHelper.getIntervals()
 
-        intervals.keySet().sort().each { intervalName ->
-            valueDistribution[intervalName] = 0
-        }
-        typedValues.each { typedValue ->
-            if (!typedValue) {
-                if (valueDistribution["Null"]) {
-                    valueDistribution["Null"] = valueDistribution["Null"] + 1
-                } else {
-                    valueDistribution["Null"] = 1
-                }
+        initialiseValueDistribution(intervals)
+
+        typedValues.each {typedValue ->
+            if (typedValue == null) {
+                valueDistribution[NULL_VALUE_KEY] = valueDistribution[NULL_VALUE_KEY] + 1
             } else {
                 LocalDateTime ldtTypedValue = convertToLocalDateTimeViaMillisecond((Date) typedValue)
-                intervals.each { interval ->
+                intervals.each {interval ->
                     if (ldtTypedValue >= interval.value.aValue && ldtTypedValue < interval.value.bValue) {
                         valueDistribution[interval.key] = valueDistribution[interval.key] + 1
                     }
@@ -258,52 +256,30 @@ class ColumnData {
     }
 
     void calculateIntegerSummaryMetadataByRange() {
-        Integer intMinValue = (Integer) minValue
-        Integer intMaxValue = (Integer) maxValue
-
-        IntegerIntervalHelper integerIntervalHelper = new IntegerIntervalHelper(intMinValue, intMaxValue)
-        Map<String, Pair<Integer, Integer>> intervals = integerIntervalHelper.getIntervals()
-
-        intervals.keySet().sort().each { intervalName ->
-            valueDistribution[intervalName] = 0
-        }
-        typedValues.each { typedValue ->
-            if (!typedValue) {
-                if (valueDistribution["Null"]) {
-                    valueDistribution["Null"] = valueDistribution["Null"] + 1
-                } else {
-                    valueDistribution["Null"] = 1
-                }
-            } else {
-                intervals.each { interval ->
-                    if ((Integer) typedValue >= interval.value.aValue && (Integer) typedValue < interval.value.bValue) {
-                        valueDistribution[interval.key] = valueDistribution[interval.key] + 1
-                    }
-                }
-            }
-        }
+        IntegerIntervalHelper integerIntervalHelper = new IntegerIntervalHelper((Integer) minValue, (Integer) maxValue)
+        buildNumericValueDistribution(integerIntervalHelper.getIntervals())
     }
 
     void calculateDecimalSummaryMetadataByRange() {
-        BigDecimal intMinValue = (BigDecimal) minValue
-        BigDecimal intMaxValue = (BigDecimal) maxValue
+        DecimalIntervalHelper decimalIntervalHelper = new DecimalIntervalHelper((BigDecimal) minValue, (BigDecimal) maxValue)
+        buildNumericValueDistribution(decimalIntervalHelper.getIntervals())
+    }
 
-        DecimalIntervalHelper decimalIntervalHelper = new DecimalIntervalHelper(intMinValue, intMaxValue)
-        Map<String, Pair<BigDecimal, BigDecimal>> intervals = decimalIntervalHelper.getIntervals()
-
-        intervals.keySet().sort().each { intervalName ->
-            valueDistribution[intervalName] = 0
+    void initialiseValueDistribution(Map<String, Pair> intervals) {
+        valueDistribution = intervals.keySet().collectEntries {intervalName ->
+            [intervalName, 0]
         }
-        typedValues.each { typedValue ->
-            if (!typedValue) {
-                if (valueDistribution["Null"]) {
-                    valueDistribution["Null"] = valueDistribution["Null"] + 1
-                } else {
-                    valueDistribution["Null"] = 1
-                }
+        if (optional) valueDistribution[NULL_VALUE_KEY] = 0
+    }
+
+    void buildNumericValueDistribution(Map<String, Pair<String, Number>> intervals) {
+        initialiseValueDistribution(intervals)
+        typedValues.each {typedValue ->
+            if (typedValue == null) {
+                valueDistribution[NULL_VALUE_KEY] = valueDistribution.Null + 1
             } else {
-                intervals.each { interval ->
-                    if ((BigDecimal) typedValue >= interval.value.aValue && (BigDecimal) typedValue < interval.value.bValue) {
+                intervals.each {interval ->
+                    if (typedValue >= interval.value.aValue && typedValue < interval.value.bValue) {
                         valueDistribution[interval.key] = valueDistribution[interval.key] + 1
                     }
                 }
@@ -311,24 +287,11 @@ class ColumnData {
         }
     }
 
-    void calculateStringSummaryMetadata() {
-        distinctValues.keySet().sort().each { valueName ->
-            if (!valueName) {
-                valueDistribution["Null"] = distinctValues[valueName]
-            } else {
-                valueDistribution[(String) valueName] = distinctValues[valueName]
-            }
-        }
-    }
-
-    void calculateIntegerSummaryMetadataByDistinctValues() {
-        distinctValues.keySet().sort().each { valueName ->
-            if (!valueName) {
-                valueDistribution["Null"] = distinctValues[valueName]
-            } else {
-                valueDistribution["" + (Integer) valueName] = distinctValues[valueName]
-            }
-        }
+    void calculateSummaryMetadataByDistinctValues() {
+        if (!distinctValues) return
+        valueDistribution = distinctValues.sort {it.key}.collectEntries {valueName, value ->
+            valueName == null ? [NULL_VALUE_KEY, value] : ["$valueName".toString(), value]
+        } as Map<String, Integer>
     }
 
     static Object getTypedValue(String input) {
@@ -344,7 +307,7 @@ class ColumnData {
         try {
             Date date = DateUtils.parseDate(input, dateFormats)
             return date
-        } catch (Exception ignored) { /* Do nothing */ }
+        } catch (Exception ignored) {/* Do nothing */}
 
         input
     }
@@ -354,33 +317,5 @@ class ColumnData {
             .atZone(ZoneId.systemDefault())
             .toLocalDateTime()
     }
-
-    Object[] tableDataRow() {
-        //return [headerName, possibleDataTypes, "C", "D", "E", "F"]
-        String distinctVals = ">" + csvImportOptions.maxEnumerations
-        if (distinctValues.size() <= csvImportOptions.maxEnumerations) {
-            distinctVals = distinctValues.size()
-        }
-        return [
-            headerName,
-            possibleDataTypes,
-            "" + optional,
-            distinctVals,
-            "" + minValue,
-            "" + maxValue
-        ]
-    }
-
-    static String[] tableHeaderRow() {
-        return [
-            "Column name",
-            "Possible types",
-            "Optional",
-            "Distinct values",
-            "Min value",
-            "Max value"
-        ]
-    }
-
 }
 

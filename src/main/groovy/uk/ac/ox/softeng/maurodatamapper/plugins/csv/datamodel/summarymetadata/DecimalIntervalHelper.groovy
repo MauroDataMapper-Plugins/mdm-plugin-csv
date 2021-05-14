@@ -33,7 +33,7 @@ class DecimalIntervalHelper {
     BigDecimal firstIntervalStart
     List<BigDecimal> intervalStarts
 
-    LinkedHashMap<String, Pair<BigDecimal, BigDecimal>> intervals
+    Map<String, Pair<BigDecimal, BigDecimal>> intervals
 
 
     DecimalIntervalHelper(BigDecimal minNum, BigDecimal maxNum) {
@@ -101,12 +101,10 @@ class DecimalIntervalHelper {
     }
 
     void calculateIntervals() {
-        intervals = new LinkedHashMap()
-        intervalStarts.each { start ->
-
+        intervals = intervalStarts.collectEntries {start ->
             BigDecimal finish = start + intervalLength
-            String label = "" + start + labelSeparator + finish
-            intervals[label] = (new Pair(start, finish))
+            String label = "${start}${labelSeparator}${finish}"
+            [label, new Pair(start, finish)]
         }
 
     }
