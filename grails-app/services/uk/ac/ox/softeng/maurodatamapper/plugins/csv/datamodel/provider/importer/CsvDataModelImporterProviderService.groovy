@@ -103,11 +103,9 @@ class CsvDataModelImporterProviderService
             topLevelClass.addToDataElements(dataElement)
             SummaryMetadata summaryMetadata = column.calculateSummaryMetadata()
             if (summaryMetadata) {
-                if (!summaryMetadata.label) {
-                    summaryMetadata.label = dataElement.label
-                }
+                SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata()
                 dataElement.addToSummaryMetadata(summaryMetadata)
-                topLevelClass.addToSummaryMetadata(summaryMetadata)
+                topLevelClass.addToSummaryMetadata(dcSummaryMetadata)
             }
         }
         dataModel

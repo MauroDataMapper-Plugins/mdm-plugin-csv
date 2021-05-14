@@ -154,9 +154,10 @@ class ColumnData {
         } else if (decideDataType() == 'String' && distinctValues.size() <= csvImportOptions.maxEnumerations) {
             calculateStringSummaryMetadata()
         } else {
+            // Not possible to calculate SM for other types
             return null
         }
-        //TODO Can't actually get here
+
         if (csvImportOptions.testOnly) {
             return null
         }

@@ -30,7 +30,7 @@ class SummaryMetadataHelper {
 
     static SummaryMetadata createSummaryMetadataFromMap(String headerName, String description, Map<String, Integer> valueDistribution ) {
         SummaryMetadata summaryMetadata = new SummaryMetadata(
-            name: headerName,
+            label: headerName,
             description: description,
             summaryMetadataType: SummaryMetadataType.MAP
         )

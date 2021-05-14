@@ -21,6 +21,8 @@ import uk.ac.ox.softeng.maurodatamapper.core.container.Folder
 import uk.ac.ox.softeng.maurodatamapper.core.provider.importer.parameter.FileParameter
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModel
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModelService
+import uk.ac.ox.softeng.maurodatamapper.datamodel.facet.SummaryMetadata
+import uk.ac.ox.softeng.maurodatamapper.datamodel.facet.SummaryMetadataService
 import uk.ac.ox.softeng.maurodatamapper.datamodel.item.DataClass
 import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer.parameter.CsvDataModelImporterProviderServiceParameters
 import uk.ac.ox.softeng.maurodatamapper.test.integration.BaseIntegrationSpec
@@ -46,6 +48,7 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
 
     CsvDataModelImporterProviderService csvDataModelImporterProviderService
     DataModelService dataModelService
+    SummaryMetadataService summaryMetadataService
 
     @Shared
     Path resourcesPath
@@ -122,10 +125,36 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
         then:
         dataClass.label == 'CSV fields'
         dataClass.dataElements.size() == 27
-        headers.eachWithIndex { h, i ->
+        headers.eachWithIndex {h, i ->
             String l = h == 'Null' && i > 12 ? "Null($i)" : h
-            Assert.assertTrue "$l exists", dataClass.dataElements.any { it.label == l }
+            Assert.assertTrue "$l exists", dataClass.dataElements.any {it.label == l}
         }
+
+        when:
+        dataModelService.saveModelWithContent(dataModel)
+        DataModel saved = dataModelService.get(dataModel.id)
+
+        then:
+        saved.label == 'Lauth'
+        saved.dataTypes.size() == 13
+        saved.primitiveTypes.size() == 8
+        saved.primitiveTypes.size() == 8
+        saved.enumerationTypes.size() == 5
+        saved.dataClasses.size() == 1
+        saved.dataClasses.first().dataElements.size() == 27
+
+        when:
+        dataClass = saved.dataClasses.first()
+        List<SummaryMetadata> summaryMetadata = summaryMetadataService.findAllByMultiFacetAwareItemId(dataClass.id)
+
+        then:
+        dataClass.summaryMetadata.size() == 20
+        summaryMetadata.size() == 20
+        dataClass.dataElements.each {de ->
+            summaryMetadata = summaryMetadataService.findAllByMultiFacetAwareItemId(de.id)
+            summaryMetadata.size() == 1
+        }
+
     }
 
     def 'Test importing Postcode-districts.csv'() {
