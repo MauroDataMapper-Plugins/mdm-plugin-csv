@@ -4,7 +4,7 @@ dependencies {
         exclude group: 'com.google.guava', module: 'guava'
     }
 
-    testImplementation group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-testing-framework', version: mdmTestingFrameworkVersion
+    testImplementation group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-testing-framework', version: mdmCoreVersion
 
     implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.11'
     implementation 'com.opencsv:opencsv:5.1'
