@@ -276,7 +276,7 @@ class ColumnData {
         initialiseValueDistribution(intervals)
         typedValues.each {typedValue ->
             if (typedValue == null) {
-                valueDistribution[NULL_VALUE_KEY] = valueDistribution.Null + 1
+                valueDistribution[NULL_VALUE_KEY] = valueDistribution[NULL_VALUE_KEY] + 1
             } else {
                 intervals.each {interval ->
                     if (typedValue >= interval.value.aValue && typedValue < interval.value.bValue) {
