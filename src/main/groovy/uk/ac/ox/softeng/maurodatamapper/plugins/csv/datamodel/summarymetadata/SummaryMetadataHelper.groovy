@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
+ * Copyright 2020-2021 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package uk.ac.ox.softeng.maurodatamapper.plugins.csv.summarymetadata
+package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.summarymetadata
 
 import uk.ac.ox.softeng.maurodatamapper.datamodel.facet.SummaryMetadata
 import uk.ac.ox.softeng.maurodatamapper.datamodel.facet.SummaryMetadataType
@@ -30,7 +30,7 @@ class SummaryMetadataHelper {
 
     static SummaryMetadata createSummaryMetadataFromMap(String headerName, String description, Map<String, Integer> valueDistribution ) {
         SummaryMetadata summaryMetadata = new SummaryMetadata(
-            name: headerName,
+            label: headerName,
             description: description,
             summaryMetadataType: SummaryMetadataType.MAP
         )
