@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
+ * Copyright 2020-2021 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,20 +15,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package uk.ac.ox.softeng.maurodatamapper.plugins.csv.summarymetadata
+package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.summarymetadata
 
 import grails.util.Pair
 
 class DecimalIntervalHelper {
-
-
-    static void main(String[] args) {
-
-        DecimalIntervalHelper decimalIntervalHelper = new DecimalIntervalHelper(0.65, 3)
-        decimalIntervalHelper.intervals.each { interval ->
-            System.err.println(interval.key)
-        }
-    }
 
     BigDecimal minNum, maxNum
     BigDecimal difference
@@ -42,7 +33,7 @@ class DecimalIntervalHelper {
     BigDecimal firstIntervalStart
     List<BigDecimal> intervalStarts
 
-    LinkedHashMap<String, Pair<BigDecimal, BigDecimal>> intervals
+    Map<String, Pair<BigDecimal, BigDecimal>> intervals
 
 
     DecimalIntervalHelper(BigDecimal minNum, BigDecimal maxNum) {
@@ -110,12 +101,10 @@ class DecimalIntervalHelper {
     }
 
     void calculateIntervals() {
-        intervals = new LinkedHashMap()
-        intervalStarts.each { start ->
-
+        intervals = intervalStarts.collectEntries {start ->
             BigDecimal finish = start + intervalLength
-            String label = "" + start + labelSeparator + finish
-            intervals[label] = (new Pair(start, finish))
+            String label = "${start}${labelSeparator}${finish}"
+            [label, new Pair(start, finish)]
         }
 
     }

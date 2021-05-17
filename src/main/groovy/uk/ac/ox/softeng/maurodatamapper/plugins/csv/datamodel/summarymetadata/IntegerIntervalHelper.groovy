@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
+ * Copyright 2020-2021 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package uk.ac.ox.softeng.maurodatamapper.plugins.csv.summarymetadata
+package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.summarymetadata
 
 import grails.util.Pair
 
@@ -34,7 +34,7 @@ class IntegerIntervalHelper {
     Integer firstIntervalStart
     List<Integer> intervalStarts
 
-    LinkedHashMap<String, Pair<Integer, Integer>> intervals
+    Map<String, Pair<Integer, Integer>> intervals
 
 
     IntegerIntervalHelper(Integer minNum, Integer maxNum) {
@@ -51,37 +51,37 @@ class IntegerIntervalHelper {
 
     void calculateInterval() {
 
-         if (1 < difference && difference <= 5 ) {
+        if (1 < difference && difference <= 5) {
             intervalLength = 1
-        } else if (5 < difference && difference <= 10 ) {
+        } else if (5 < difference && difference <= 10) {
             intervalLength = 2
-        } else if (10 < difference && difference <= 20 ) {
+        } else if (10 < difference && difference <= 20) {
             intervalLength = 5
-        } else if (20 < difference && difference <= 100 ) {
+        } else if (20 < difference && difference <= 100) {
             intervalLength = 10
-        } else if (100 < difference && difference <= 200 ) {
+        } else if (100 < difference && difference <= 200) {
             intervalLength = 20
-        } else if (200 < difference && difference <= 1000 ) {
+        } else if (200 < difference && difference <= 1000) {
             intervalLength = 100
-        } else if (1000 < difference && difference <= 2000 ) {
+        } else if (1000 < difference && difference <= 2000) {
             intervalLength = 200
-        } else if (2000 < difference && difference <= 10000 ) {
+        } else if (2000 < difference && difference <= 10000) {
             intervalLength = 1000
-        } else if (10000 < difference && difference <= 20000 ) {
+        } else if (10000 < difference && difference <= 20000) {
             intervalLength = 2000
-        } else if (20000 < difference && difference <= 100000 ) {
+        } else if (20000 < difference && difference <= 100000) {
             intervalLength = 10000
-        } else if (100000 < difference && difference <= 200000 ) {
+        } else if (100000 < difference && difference <= 200000) {
             intervalLength = 20000
-        } else if (200000 < difference && difference <= 1000000 ) {
+        } else if (200000 < difference && difference <= 1000000) {
             intervalLength = 100000
-        } else if (1000000 < difference && difference <= 2000000 ) {
+        } else if (1000000 < difference && difference <= 2000000) {
             intervalLength = 200000
-        } else if (2000000 < difference && difference <= 10000000 ) {
+        } else if (2000000 < difference && difference <= 10000000) {
             intervalLength = 1000000
-        } else if (10000000 < difference && difference <= 20000000 ) {
+        } else if (10000000 < difference && difference <= 20000000) {
             intervalLength = 2000000
-        } else if (20000000 < difference && difference <= 100000000 ) {
+        } else if (20000000 < difference && difference <= 100000000) {
             intervalLength = 10000000
         } else intervalLength = maxNum - minNum / 10
 
@@ -91,19 +91,17 @@ class IntegerIntervalHelper {
     void calculateIntervalStarts() {
         intervalStarts = []
         Integer currNum = firstIntervalStart
-        while(currNum < maxNum) {
+        while (currNum < maxNum) {
             intervalStarts.add(currNum)
             currNum += intervalLength
         }
     }
 
     void calculateIntervals() {
-        intervals = new LinkedHashMap()
-        intervalStarts.each { start ->
-
+        intervals = intervalStarts.collectEntries {start ->
             Integer finish = start + intervalLength
             String label = "" + start + labelSeparator + finish
-            intervals[label] = (new Pair(start, finish))
+            [label, new Pair(start, finish)]
         }
 
     }
