@@ -20,6 +20,7 @@ package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer
 import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiBadRequestException
 import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiNotYetImplementedException
 import uk.ac.ox.softeng.maurodatamapper.core.authority.AuthorityService
+import uk.ac.ox.softeng.maurodatamapper.core.provider.importer.parameter.FileParameter
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModel
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModelType
 import uk.ac.ox.softeng.maurodatamapper.datamodel.facet.SummaryMetadata
@@ -34,6 +35,10 @@ import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.ColumnData
 import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer.parameter.CsvDataModelImporterProviderServiceParameters
 import uk.ac.ox.softeng.maurodatamapper.plugins.csv.reader.CsvReader
 import uk.ac.ox.softeng.maurodatamapper.security.User
+
+import java.nio.file.Files
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 
 class CsvDataModelImporterProviderService
     extends DataModelImporterProviderService<CsvDataModelImporterProviderServiceParameters> {
@@ -72,43 +77,112 @@ class CsvDataModelImporterProviderService
     }
 
     DataModel importSingleFile(CsvDataModelImporterProviderServiceParameters parameters) {
-        Map<String, ColumnData> columns = getColumnDefinitions(parameters)
+        log.info('Loading CSV model from {}', parameters.getImportFile().getFileName())
+        String fileType = parameters.getImportFile().getFileType()
+        log.info('Loading CSV model filetype {}', fileType)
+        if (fileType == "application/rar" || fileType == "application/zip" || fileType == "application/x-zip-compressed") {
+            String modelName = parameters.importFile.fileName.take(parameters.importFile.fileName.lastIndexOf('.'))
+            DataModel dataModel = new DataModel(label: modelName, modelType: DataModelType.DATA_ASSET, authority: authorityService.defaultAuthority)
 
-        if (!columns) {
-            throw new ApiBadRequestException('CSV02', "Nothing to load into DataModel from file [${parameters.importFile.fileName}]")
-        }
-
-        String modelName = parameters.importFile.fileName.take(parameters.importFile.fileName.lastIndexOf('.'))
-        DataModel dataModel = new DataModel(label: modelName, modelType: DataModelType.DATA_ASSET, authority: authorityService.defaultAuthority)
-
-        Map<String, DataType> dataTypes = getPrimitiveDataTypes(parameters)
-        dataTypes.each { k, dt ->
-            dataModel.addToDataTypes(dt)
-        }
-
-        DataClass topLevelClass = new DataClass(label: 'CSV fields')
-        dataModel.addToDataClasses(topLevelClass)
-
-        columns.each { header, column ->
-            DataType dataType = column.getDataType(dataTypes)
-            if (dataType instanceof EnumerationType) {
-                dataModel.addToDataTypes(dataType)
+            Map<String, DataType> dataTypes = getPrimitiveDataTypes(parameters)
+            dataTypes.each {k, dt ->
+                dataModel.addToDataTypes(dt)
             }
-            if (!dataType) log.warn('Unknown datatype {}', column.decideDataType())
-            DataElement dataElement = new DataElement(
-                label: header,
-                dataType: dataType,
-                minMultiplicity: column.getMinMultiplicity(),
-                maxMultiplicity: column.getMaxMultiplicity())
-            topLevelClass.addToDataElements(dataElement)
-            SummaryMetadata summaryMetadata = column.calculateSummaryMetadata()
-            if (summaryMetadata) {
-                SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata()
-                dataElement.addToSummaryMetadata(summaryMetadata)
-                topLevelClass.addToSummaryMetadata(dcSummaryMetadata)
+
+            log.info('Loading Zip File')
+
+            File tempDir = Files.createTempDirectory("temp").toFile()
+            log.info('Temp Folder Location {}', tempDir.getAbsolutePath())
+
+            byte[] buffer = new byte[1024];
+            ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(parameters.getImportFile().getFileContents()))
+            ZipEntry zipEntry = zis.getNextEntry()
+            while (zipEntry != null) {
+                if (zipEntry.isDirectory()) {
+                    throw new ApiBadRequestException('CSVXX', "File [${parameters.importFile.fileName}] containts directory [${zipEntry.name}] but should only contain CSV" +
+                                                              "files.")
+                }
+                File newFile = newFile(tempDir, zipEntry)
+                FileOutputStream fos = new FileOutputStream(newFile)
+                int len;
+                while ((len = zis.read(buffer)) > 0) {
+                    fos.write(buffer, 0, len)
+                }
+                fos.close()
+
+                parameters.importFile = new FileParameter(newFile.name, 'text/csv', newFile.bytes)
+                String className = newFile.name.take(newFile.name.lastIndexOf('.'))
+
+                DataClass fileClass = new DataClass(label: className)
+                dataModel.addToDataClasses(fileClass)
+
+                Map<String, ColumnData> columns = getColumnDefinitions(parameters)
+
+                columns.each {header, column ->
+                    DataType dataType = column.getDataType(dataTypes)
+                    if (dataType instanceof EnumerationType) {
+                        dataModel.addToDataTypes(dataType)
+                    }
+                    if (!dataType) log.warn('Unknown datatype {}', column.decideDataType())
+                    DataElement dataElement = new DataElement(
+                        label: header,
+                        dataType: dataType,
+                        minMultiplicity: column.getMinMultiplicity(),
+                        maxMultiplicity: column.getMaxMultiplicity())
+                    fileClass.addToDataElements(dataElement)
+                    SummaryMetadata summaryMetadata = column.calculateSummaryMetadata()
+                    if (summaryMetadata) {
+                        SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata()
+                        dataElement.addToSummaryMetadata(summaryMetadata)
+                        fileClass.addToSummaryMetadata(dcSummaryMetadata)
+                    }
+                }
+
+                zipEntry = zis.getNextEntry()
             }
+            zis.closeEntry();
+            zis.close();
+
+            dataModel
+        } else {
+            Map<String, ColumnData> columns = getColumnDefinitions(parameters)
+
+            if (!columns) {
+                throw new ApiBadRequestException('CSV02', "Nothing to load into DataModel from file [${parameters.importFile.fileName}]")
+            }
+
+            String modelName = parameters.importFile.fileName.take(parameters.importFile.fileName.lastIndexOf('.'))
+            DataModel dataModel = new DataModel(label: modelName, modelType: DataModelType.DATA_ASSET, authority: authorityService.defaultAuthority)
+
+            Map<String, DataType> dataTypes = getPrimitiveDataTypes(parameters)
+            dataTypes.each {k, dt ->
+                dataModel.addToDataTypes(dt)
+            }
+
+            DataClass topLevelClass = new DataClass(label: 'CSV fields')
+            dataModel.addToDataClasses(topLevelClass)
+
+            columns.each {header, column ->
+                DataType dataType = column.getDataType(dataTypes)
+                if (dataType instanceof EnumerationType) {
+                    dataModel.addToDataTypes(dataType)
+                }
+                if (!dataType) log.warn('Unknown datatype {}', column.decideDataType())
+                DataElement dataElement = new DataElement(
+                    label: header,
+                    dataType: dataType,
+                    minMultiplicity: column.getMinMultiplicity(),
+                    maxMultiplicity: column.getMaxMultiplicity())
+                topLevelClass.addToDataElements(dataElement)
+                SummaryMetadata summaryMetadata = column.calculateSummaryMetadata()
+                if (summaryMetadata) {
+                    SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata()
+                    dataElement.addToSummaryMetadata(summaryMetadata)
+                    topLevelClass.addToSummaryMetadata(dcSummaryMetadata)
+                }
+            }
+            dataModel
         }
-        dataModel
     }
 
     Map<String, ColumnData> getColumnDefinitions(CsvDataModelImporterProviderServiceParameters parameters) {
@@ -149,5 +223,18 @@ class CsvDataModelImporterProviderService
         types.BigDecimal = types.Decimal
         types.String = types.Text
         parameters.detectTypes ? types : [String: types.String]
+    }
+
+    private File newFile(File destinationDir, ZipEntry zipEntry) throws IOException {
+        File destFile = new File(destinationDir, zipEntry.getName());
+
+        String destDirPath = destinationDir.getCanonicalPath();
+        String destFilePath = destFile.getCanonicalPath();
+
+        if (!destFilePath.startsWith(destDirPath + File.separator)) {
+            throw new IOException("Entry is outside of the target dir: " + zipEntry.getName());
+        }
+
+        return destFile;
     }
 }

@@ -139,7 +139,17 @@ grailsPublish {
 grails {
     plugins {
         compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-core', version: mdmCoreVersion
+        compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-authentication-basic', version: mdmCoreVersion
+        //compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-authentication-apikey', version: mdmCoreVersion
         compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-datamodel', version: mdmCoreVersion
+        compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-terminology', version: mdmCoreVersion
+        compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-referencedata', version: mdmCoreVersion
+        compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-federation', version: mdmCoreVersion
+        compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-security', version: mdmCoreVersion
+        //compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-dataflow', version: mdmCoreVersion
+        compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-profile', version: mdmCoreVersion
+        compile group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-plugin-datamodel', version: mdmCoreVersion
+        runtimeOnly 'uk.ac.ox.softeng.maurodatamapper.plugins:mdm-plugin-xsd:1.0.0-SNAPSHOT'
     }
 }
 
