@@ -51,7 +51,7 @@ class ColumnData {
 
     // for Summary Metadata
     private List<Object> typedValues = []
-    private Map<String, Integer> valueDistribution
+    private Map<String, Integer> valueDistribution = [:]
 
     ColumnData(String header, CsvDataModelImporterProviderServiceParameters options) {
         this.headerName = header
@@ -70,6 +70,10 @@ class ColumnData {
             } else {
                 optional = true
             }
+        } else {
+            if (getTypedValue(value) == null) {
+                optional = true
+            }
         }
         if (distinctValues.size() < (csvImportOptions.maxEnumerations + 1) &&
             (csvImportOptions.detectEnumerations ||
@@ -82,7 +86,7 @@ class ColumnData {
             }
         }
 
-        if (csvImportOptions.generateSummaryMetadata) {
+        if (csvImportOptions.generateSummaryMetadata || csvImportOptions.detectTypes) {
             typedValues.add(typedValue)
         }
     }

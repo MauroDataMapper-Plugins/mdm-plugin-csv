@@ -22,9 +22,11 @@ import uk.ac.ox.softeng.maurodatamapper.core.provider.importer.parameter.config.
 import uk.ac.ox.softeng.maurodatamapper.core.provider.importer.parameter.config.ImportParameterConfig
 import uk.ac.ox.softeng.maurodatamapper.datamodel.provider.importer.parameter.DataModelFileImporterProviderServiceParameters
 
+import groovy.transform.AutoClone
 import groovy.util.logging.Slf4j
 
 @Slf4j
+@AutoClone
 class CsvDataModelImporterProviderServiceParameters extends DataModelFileImporterProviderServiceParameters {
 
     @ImportParameterConfig(

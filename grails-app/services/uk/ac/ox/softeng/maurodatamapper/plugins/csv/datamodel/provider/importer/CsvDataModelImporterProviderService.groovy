@@ -36,7 +36,10 @@ import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer.
 import uk.ac.ox.softeng.maurodatamapper.plugins.csv.reader.CsvReader
 import uk.ac.ox.softeng.maurodatamapper.security.User
 
+import grails.core.GrailsApplication
+
 import java.nio.file.Files
+import java.util.regex.Pattern
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
@@ -45,8 +48,7 @@ class CsvDataModelImporterProviderService
 
     AuthorityService authorityService
     DataTypeService dataTypeService
-
-
+    GrailsApplication grailsApplication
 
     @Override
     String getDisplayName() {
@@ -65,7 +67,7 @@ class CsvDataModelImporterProviderService
 
     @Override
     List<DataModel> importModels(User currentUser, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
-        throw new ApiNotYetImplementedException('CSV03', 'importModels')
+        throw new ApiNotYetImplementedException('CSV01', 'importModels')
     }
 
     @Override
@@ -80,91 +82,91 @@ class CsvDataModelImporterProviderService
         log.info('Loading CSV model from {}', parameters.getImportFile().getFileName())
         String fileType = parameters.getImportFile().getFileType()
         log.info('Loading CSV model filetype {}', fileType)
-        if (fileType == "application/rar" || fileType == "application/zip" || fileType == "application/x-zip-compressed") {
-            String modelName = parameters.importFile.fileName.take(parameters.importFile.fileName.lastIndexOf('.'))
-            DataModel dataModel = new DataModel(label: modelName, modelType: DataModelType.DATA_ASSET, authority: authorityService.defaultAuthority)
 
-            Map<String, DataType> dataTypes = getPrimitiveDataTypes(parameters)
-            dataTypes.each {k, dt ->
-                dataModel.addToDataTypes(dt)
-            }
+        String modelName = parameters.importFile.fileName.take(parameters.importFile.fileName.lastIndexOf('.'))
+        DataModel dataModel = new DataModel(label: modelName, modelType: DataModelType.DATA_ASSET, authority: authorityService.defaultAuthority)
 
+        Map<String, DataType> dataTypes = getPrimitiveDataTypes(parameters)
+        dataTypes.each {k, dt ->
+            dataModel.addToDataTypes(dt)
+        }
+
+        Boolean importFromArchive = false
+
+        List<CsvDataModelImporterProviderServiceParameters> parametersList = []
+
+        if (fileType == "application/zip" || fileType == "application/x-zip-compressed") {
+            importFromArchive = true
             log.info('Loading Zip File')
+
+            if (!parameters.firstRowIsHeader) {
+                parameters.firstRowIsHeader = true
+                log.warn('Using first row of CSV files as headers when importing from archive')
+            }
 
             File tempDir = Files.createTempDirectory("temp").toFile()
             log.info('Temp Folder Location {}', tempDir.getAbsolutePath())
+
+            List<Pattern> excludePatterns = grailsApplication.config.getProperty('maurodatamapper.csv.archive.exclude', List).collect {
+                Pattern.compile(it)
+            }
 
             byte[] buffer = new byte[1024];
             ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(parameters.getImportFile().getFileContents()))
             ZipEntry zipEntry = zis.getNextEntry()
             while (zipEntry != null) {
+                if (excludePatterns.find {zipEntry.getName() ==~ it}) {
+                    log.warn('Skipping excluded archive file [{}]', zipEntry.getName())
+                    zipEntry = zis.getNextEntry()
+                    continue
+                }
                 if (zipEntry.isDirectory()) {
-                    throw new ApiBadRequestException('CSVXX', "File [${parameters.importFile.fileName}] containts directory [${zipEntry.name}] but should only contain CSV" +
-                                                              "files.")
+                    throw new ApiBadRequestException('CSV02',
+                                                     "Archive [${parameters.importFile.fileName}] containts directory [${zipEntry.name}] but should only contain CSV " +
+                                                     "files.")
+                } else if (zipEntry.getName().contains('/')) {
+                    throw new ApiBadRequestException('CSV03',
+                                                     "Archive [${parameters.importFile.fileName}] containts file with path [${zipEntry.name}] but should not contain " +
+                                                     "directories.")
                 }
                 File newFile = newFile(tempDir, zipEntry)
                 FileOutputStream fos = new FileOutputStream(newFile)
-                int len;
+                int len
                 while ((len = zis.read(buffer)) > 0) {
                     fos.write(buffer, 0, len)
                 }
                 fos.close()
 
-                parameters.importFile = new FileParameter(newFile.name, 'text/csv', newFile.bytes)
-                String className = newFile.name.take(newFile.name.lastIndexOf('.'))
-
-                DataClass fileClass = new DataClass(label: className)
-                dataModel.addToDataClasses(fileClass)
-
-                Map<String, ColumnData> columns = getColumnDefinitions(parameters)
-
-                columns.each {header, column ->
-                    DataType dataType = column.getDataType(dataTypes)
-                    if (dataType instanceof EnumerationType) {
-                        dataModel.addToDataTypes(dataType)
-                    }
-                    if (!dataType) log.warn('Unknown datatype {}', column.decideDataType())
-                    DataElement dataElement = new DataElement(
-                        label: header,
-                        dataType: dataType,
-                        minMultiplicity: column.getMinMultiplicity(),
-                        maxMultiplicity: column.getMaxMultiplicity())
-                    fileClass.addToDataElements(dataElement)
-                    SummaryMetadata summaryMetadata = column.calculateSummaryMetadata()
-                    if (summaryMetadata) {
-                        SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata()
-                        dataElement.addToSummaryMetadata(summaryMetadata)
-                        fileClass.addToSummaryMetadata(dcSummaryMetadata)
-                    }
-                }
+                parametersList << parameters.clone().tap {it.importFile = new FileParameter(newFile.name, 'text/csv', newFile.bytes)}
 
                 zipEntry = zis.getNextEntry()
             }
-            zis.closeEntry();
-            zis.close();
-
-            dataModel
+            zis.closeEntry()
+            zis.close()
         } else {
-            Map<String, ColumnData> columns = getColumnDefinitions(parameters)
+            parametersList << parameters
+        }
 
-            if (!columns) {
-                throw new ApiBadRequestException('CSV02', "Nothing to load into DataModel from file [${parameters.importFile.fileName}]")
-            }
+        def (Map<String, ColumnData> allColumns, Map<String, Map<String, ColumnData>> fileColumns) = getColumnDefinitions(parametersList, importFromArchive)
 
-            String modelName = parameters.importFile.fileName.take(parameters.importFile.fileName.lastIndexOf('.'))
-            DataModel dataModel = new DataModel(label: modelName, modelType: DataModelType.DATA_ASSET, authority: authorityService.defaultAuthority)
+        if (!importFromArchive) allColumns = fileColumns[parameters.importFile.fileName]
+        Map<String, DataType> allDataTypes = allColumns.collectEntries {[it.key, it.value.getDataType(dataTypes)]}
 
-            Map<String, DataType> dataTypes = getPrimitiveDataTypes(parameters)
-            dataTypes.each {k, dt ->
-                dataModel.addToDataTypes(dt)
-            }
+        parametersList.each {csvParameters ->
+            String className
+            if (importFromArchive) className = csvParameters.importFile.fileName.take(csvParameters.importFile.fileName.lastIndexOf('.'))
+            else className = 'CSV fields'
 
-            DataClass topLevelClass = new DataClass(label: 'CSV fields')
-            dataModel.addToDataClasses(topLevelClass)
+            DataClass fileClass = new DataClass(label: className)
+            dataModel.addToDataClasses(fileClass)
 
+            Map<String, ColumnData> columns = fileColumns[csvParameters.importFile.fileName]
+
+            Integer columnIndex = 0
             columns.each {header, column ->
-                DataType dataType = column.getDataType(dataTypes)
-                if (dataType instanceof EnumerationType) {
+                DataType dataType = allDataTypes[header]
+                if (dataType instanceof EnumerationType && !dataModel.findDataTypeByLabel(dataType.label)) {
+                    log.debug('Adding datatype with label {}', dataType.label)
                     dataModel.addToDataTypes(dataType)
                 }
                 if (!dataType) log.warn('Unknown datatype {}', column.decideDataType())
@@ -172,47 +174,63 @@ class CsvDataModelImporterProviderService
                     label: header,
                     dataType: dataType,
                     minMultiplicity: column.getMinMultiplicity(),
-                    maxMultiplicity: column.getMaxMultiplicity())
-                topLevelClass.addToDataElements(dataElement)
-                SummaryMetadata summaryMetadata = column.calculateSummaryMetadata()
-                if (summaryMetadata) {
-                    SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata()
-                    dataElement.addToSummaryMetadata(summaryMetadata)
-                    topLevelClass.addToSummaryMetadata(dcSummaryMetadata)
+                    maxMultiplicity: column.getMaxMultiplicity()).tap { setIndex(columnIndex)}
+                columnIndex++
+                fileClass.addToDataElements(dataElement)
+                if (csvParameters.generateSummaryMetadata) {
+                    SummaryMetadata summaryMetadata = column.calculateSummaryMetadata()
+                    if (summaryMetadata) {
+                        SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata()
+                        dataElement.addToSummaryMetadata(summaryMetadata)
+                        fileClass.addToSummaryMetadata(dcSummaryMetadata)
+                    }
                 }
             }
-            dataModel
         }
+
+        dataModel
     }
 
-    Map<String, ColumnData> getColumnDefinitions(CsvDataModelImporterProviderServiceParameters parameters) {
-        CsvReader csvReader = new CsvReader(parameters.importFile, parameters.firstRowIsHeader, parameters.headers?.split(','))
-        Map<String, ColumnData> columns = csvReader.getHeaders().collectEntries { header ->
-            [header, new ColumnData(header, parameters)]
-        }
-        Map<String, String> row = csvReader.readRow()
-
-        int skippedRowCount = 0
-        boolean skippedLast = false
-        while (row) {
-            if (!skippedLast) {
-                columns.each { header, column ->
-                    column.addValue(row[header])
+    Tuple2<Map<String, ColumnData>, Map<String, Map<String, ColumnData>>> getColumnDefinitions(List<CsvDataModelImporterProviderServiceParameters> csvParametersList,
+                                                                                               Boolean multipleFiles) {
+        Map<String, ColumnData> allColumns = multipleFiles ? [:] : null
+        Map<String, Map<String, ColumnData>> fileColumns = [:]
+        csvParametersList.each {parameters ->
+            CsvReader csvReader = new CsvReader(parameters.importFile, parameters.firstRowIsHeader, parameters.headers?.split(','))
+            fileColumns[parameters.importFile.fileName] = csvReader.getHeaders().collectEntries {header ->
+                [header, new ColumnData(header, parameters)]
+            }
+            if (multipleFiles) {
+                csvReader.getHeaders().each {header ->
+                    allColumns.putIfAbsent(header, new ColumnData(header, parameters))
                 }
             }
-            try {
-                row = csvReader.readRow()
-                skippedLast = false
-            } catch (Exception e) {
-                log.debug('Skipping row because of exception: {}', e.getMessage())
-                skippedLast = true
-                skippedRowCount++
+
+            Map<String, String> row = csvReader.readRow()
+            int skippedRowCount = 0
+            boolean skippedLast = false
+            while (row) {
+                if (!skippedLast) {
+                    fileColumns[parameters.importFile.fileName].each {header, column ->
+                        column.addValue(row[header])
+                        if (multipleFiles) allColumns[header].addValue(row[header])
+                    }
+                }
+                try {
+                    row = csvReader.readRow()
+                    skippedLast = false
+                } catch (Exception e) {
+                    log.debug('Skipping row because of exception: {}', e.getMessage())
+                    skippedLast = true
+                    skippedRowCount++
+                }
+            }
+            if (skippedRowCount > 0) {
+                log.warn('Skipped {} rows', skippedRowCount)
             }
         }
-        if (skippedRowCount > 0) {
-            log.warn('Skipped {} rows', skippedRowCount)
-        }
-        columns
+
+        new Tuple2(allColumns, fileColumns)
     }
 
     Map<String, DataType> getPrimitiveDataTypes(CsvDataModelImporterProviderServiceParameters parameters) {

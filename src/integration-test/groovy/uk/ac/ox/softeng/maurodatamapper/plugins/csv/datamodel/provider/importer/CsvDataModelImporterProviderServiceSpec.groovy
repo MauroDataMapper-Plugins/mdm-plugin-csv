@@ -24,6 +24,8 @@ import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModelService
 import uk.ac.ox.softeng.maurodatamapper.datamodel.facet.SummaryMetadata
 import uk.ac.ox.softeng.maurodatamapper.datamodel.facet.SummaryMetadataService
 import uk.ac.ox.softeng.maurodatamapper.datamodel.item.DataClass
+import uk.ac.ox.softeng.maurodatamapper.datamodel.item.DataElement
+import uk.ac.ox.softeng.maurodatamapper.datamodel.item.datatype.EnumerationType
 import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer.parameter.CsvDataModelImporterProviderServiceParameters
 import uk.ac.ox.softeng.maurodatamapper.test.integration.BaseIntegrationSpec
 import uk.ac.ox.softeng.maurodatamapper.util.GormUtils
@@ -194,6 +196,168 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
         dataClass.dataElements.any { it.label == 'Households' && it.dataType.label == 'Number' }
         dataClass.dataElements.any { it.label == 'Nearby districts' && it.dataType.label == 'Text' }
     }
+
+    def 'Test importing alphabets.zip with type detection and summary metadata'() {
+        given:
+        setupDomainData()
+
+        def parameters = new CsvDataModelImporterProviderServiceParameters(
+            importFile: new FileParameter('alphabets.zip', 'application/zip', loadBytes('alphabets.zip')),
+            folderId: folder.id
+        )
+        when:
+        DataModel dataModel = importAndValidateModel('alphabets', parameters)
+        dataModel = dataModelService.saveModelWithContent(dataModel)
+
+        then:
+        dataModel.dataTypes.size() == 9
+        dataModel.dataClasses.size() == 2
+
+        when:
+        DataClass dataClass = dataModel.dataClasses.find {it.label == 'english'}
+        List<DataElement> dataElements = dataClass.getDataElements().sort()
+
+        then:
+        dataElements.size() == 3
+        dataElements[0].label == 'id'
+        dataElements[0].dataType.label == 'Number'
+        dataElements[0].minMultiplicity == 1
+        dataElements[0].maxMultiplicity == 1
+        dataElements[1].label == 'english_letter'
+        dataElements[1].dataType.label == 'Text'
+        dataElements[1].minMultiplicity == 1
+        dataElements[1].maxMultiplicity == 1
+        dataElements[2].label == 'is_vowel'
+        dataElements[2].dataType.label == 'is_vowel'
+        dataElements[2].minMultiplicity == 1
+        dataElements[2].maxMultiplicity == 1
+
+        dataClass.summaryMetadata.size() == 2
+        dataClass.summaryMetadata.any {
+            it.label == 'id' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"0 - 10":10,"10 - 20":10,"20 - 30":10}'
+        }
+        dataElements[0].summaryMetadata.size() == 1
+        dataElements[0].summaryMetadata.any {
+            it.label == 'id' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"0 - 10":10,"10 - 20":10,"20 - 30":10}'
+        }
+        dataClass.summaryMetadata.any {
+            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":21,"True":10}'
+        }
+        dataElements[2].summaryMetadata.size() == 1
+        dataElements[2].summaryMetadata.any {
+            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":21,"True":10}'
+        }
+
+        when:
+        dataClass = dataModel.dataClasses.find{it.label == 'greek'}
+        dataElements = dataClass.getDataElements().sort()
+
+        then:
+        dataElements.size() == 4
+        dataElements[0].label == 'id'
+        dataElements[0].dataType.label == 'Number'
+        dataElements[0].minMultiplicity == 1
+        dataElements[0].maxMultiplicity == 1
+        dataElements[1].label == 'greek_letter'
+        dataElements[1].dataType.label == 'Text'
+        dataElements[1].minMultiplicity == 1
+        dataElements[1].maxMultiplicity == 1
+        dataElements[2].label == 'english_letter'
+        dataElements[2].dataType.label == 'Text'
+        dataElements[2].minMultiplicity == 0
+        dataElements[2].maxMultiplicity == 1
+        dataElements[3].label == 'is_vowel'
+        dataElements[3].dataType.label == 'is_vowel'
+        dataElements[3].dataType instanceof EnumerationType
+        dataElements[3].dataType.enumerationValues.size() == 2
+        dataElements[3].dataType.findEnumerationValueByKey('True')
+        dataElements[3].dataType.findEnumerationValueByKey('False')
+        dataElements[3].minMultiplicity == 1
+        dataElements[3].maxMultiplicity == 1
+
+        dataClass.summaryMetadata.size() == 2
+        dataClass.summaryMetadata.any {
+            it.label == 'id' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"0 - 10":10,"10 - 20":10,"20 - 30":10}'
+        }
+        dataElements[0].summaryMetadata.size() == 1
+        dataElements[0].summaryMetadata.any {
+            it.label == 'id' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"0 - 10":10,"10 - 20":10,"20 - 30":10}'
+        }
+        dataClass.summaryMetadata.any {
+            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":17,"True":10}'
+        }
+        dataElements[3].summaryMetadata.size() == 1
+        dataElements[3].summaryMetadata.any {
+            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":17,"True":10}'
+        }
+    }
+
+    def 'Test importing alphabets.zip without type detection or summary metadata'() {
+        given:
+        setupDomainData()
+
+        def parameters = new CsvDataModelImporterProviderServiceParameters(
+            importFile: new FileParameter('alphabets.zip', 'application/zip', loadBytes('alphabets.zip')),
+            folderId: folder.id,
+            generateSummaryMetadata: false,
+            detectEnumerations: false,
+            detectTypes: false
+        )
+        when:
+        DataModel dataModel = importAndValidateModel('alphabets', parameters)
+        dataModel = dataModelService.saveModelWithContent(dataModel)
+
+        then:
+        dataModel.dataTypes.size() == 1
+        dataModel.dataClasses.size() == 2
+
+        when:
+        DataClass dataClass = dataModel.dataClasses.find {it.label == 'english'}
+        List<DataElement> dataElements = dataClass.getDataElements().sort()
+
+        then:
+        dataElements.size() == 3
+        dataElements[0].label == 'id'
+        dataElements[0].dataType.label == 'Text'
+        dataElements[0].minMultiplicity == 1
+        dataElements[0].maxMultiplicity == 1
+        dataElements[1].label == 'english_letter'
+        dataElements[1].dataType.label == 'Text'
+        dataElements[1].minMultiplicity == 1
+        dataElements[1].maxMultiplicity == 1
+        dataElements[2].label == 'is_vowel'
+        dataElements[2].dataType.label == 'Text'
+        dataElements[2].minMultiplicity == 1
+        dataElements[2].maxMultiplicity == 1
+
+        dataClass.summaryMetadata.size() == 0
+
+        when:
+        dataClass = dataModel.dataClasses.find{it.label == 'greek'}
+        dataElements = dataClass.getDataElements().sort()
+
+        then:
+        dataElements.size() == 4
+        dataElements[0].label == 'id'
+        dataElements[0].dataType.label == 'Text'
+        dataElements[0].minMultiplicity == 1
+        dataElements[0].maxMultiplicity == 1
+        dataElements[1].label == 'greek_letter'
+        dataElements[1].dataType.label == 'Text'
+        dataElements[1].minMultiplicity == 1
+        dataElements[1].maxMultiplicity == 1
+        dataElements[2].label == 'english_letter'
+        dataElements[2].dataType.label == 'Text'
+        dataElements[2].minMultiplicity == 0
+        dataElements[2].maxMultiplicity == 1
+        dataElements[3].label == 'is_vowel'
+        dataElements[3].dataType.label == 'Text'
+        dataElements[3].minMultiplicity == 1
+        dataElements[3].maxMultiplicity == 1
+
+        dataClass.summaryMetadata.size() == 0
+    }
+
 
     byte[] loadBytes(String filename) {
         Path testFilePath = resourcesPath.resolve("${filename}").toAbsolutePath()
