@@ -1,6 +1,0 @@
-maurodatamapper:
-    csv:
-        archive:
-            exclude:
-                - '.DS_Store'
-                - '__MACOSX(/.*)?'

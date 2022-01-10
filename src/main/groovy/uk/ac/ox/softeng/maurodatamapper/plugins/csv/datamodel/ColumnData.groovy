@@ -71,7 +71,7 @@ class ColumnData {
                 optional = true
             }
         } else {
-            if (getTypedValue(value) == null) {
+            if (!value) {
                 optional = true
             }
         }

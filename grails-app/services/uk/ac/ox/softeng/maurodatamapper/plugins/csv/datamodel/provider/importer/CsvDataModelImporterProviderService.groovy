@@ -17,7 +17,6 @@
  */
 package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer
 
-import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiBadRequestException
 import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiNotYetImplementedException
 import uk.ac.ox.softeng.maurodatamapper.core.authority.AuthorityService
 import uk.ac.ox.softeng.maurodatamapper.core.provider.importer.parameter.FileParameter
@@ -36,10 +35,7 @@ import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer.
 import uk.ac.ox.softeng.maurodatamapper.plugins.csv.reader.CsvReader
 import uk.ac.ox.softeng.maurodatamapper.security.User
 
-import grails.core.GrailsApplication
-
 import java.nio.file.Files
-import java.util.regex.Pattern
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
@@ -48,7 +44,6 @@ class CsvDataModelImporterProviderService
 
     AuthorityService authorityService
     DataTypeService dataTypeService
-    GrailsApplication grailsApplication
 
     @Override
     String getDisplayName() {
@@ -107,29 +102,28 @@ class CsvDataModelImporterProviderService
             File tempDir = Files.createTempDirectory("temp").toFile()
             log.info('Temp Folder Location {}', tempDir.getAbsolutePath())
 
-            List<Pattern> excludePatterns = grailsApplication.config.getProperty('maurodatamapper.csv.archive.exclude', List).collect {
-                Pattern.compile(it)
-            }
-
             byte[] buffer = new byte[1024];
             ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(parameters.getImportFile().getFileContents()))
             ZipEntry zipEntry = zis.getNextEntry()
             while (zipEntry != null) {
-                if (excludePatterns.find {zipEntry.getName() ==~ it}) {
-                    log.warn('Skipping excluded archive file [{}]', zipEntry.getName())
+                File newFile = newFile(tempDir, zipEntry)
+
+                if (zipEntry.isDirectory() || newFile.isHidden() || !isCsvFile(zipEntry.getName())) {
+                    if (newFile.isHidden()) {
+                        log.warn('Skipping [{}], is a hidden file', zipEntry.getName())
+                    } else {
+                        log.warn('Skipping [{}], is not a CSV file', zipEntry.getName())
+                    }
                     zipEntry = zis.getNextEntry()
                     continue
                 }
-                if (zipEntry.isDirectory()) {
-                    throw new ApiBadRequestException('CSV02',
-                                                     "Archive [${parameters.importFile.fileName}] containts directory [${zipEntry.name}] but should only contain CSV " +
-                                                     "files.")
-                } else if (zipEntry.getName().contains('/')) {
-                    throw new ApiBadRequestException('CSV03',
-                                                     "Archive [${parameters.importFile.fileName}] containts file with path [${zipEntry.name}] but should not contain " +
-                                                     "directories.")
+
+                // If CSV file is in directory, create it
+                File parent = newFile.getParentFile()
+                if (!parent.isDirectory() && !parent.mkdirs()) {
+                    throw new IOException("Failed to create directory " + parent);
                 }
-                File newFile = newFile(tempDir, zipEntry)
+
                 FileOutputStream fos = new FileOutputStream(newFile)
                 int len
                 while ((len = zis.read(buffer)) > 0) {
@@ -137,7 +131,7 @@ class CsvDataModelImporterProviderService
                 }
                 fos.close()
 
-                parametersList << parameters.clone().tap {it.importFile = new FileParameter(newFile.name, 'text/csv', newFile.bytes)}
+                parametersList << parameters.clone().tap {it.importFile = new FileParameter(zipEntry.getName(), 'text/csv', newFile.bytes)}
 
                 zipEntry = zis.getNextEntry()
             }
@@ -162,8 +156,7 @@ class CsvDataModelImporterProviderService
 
             Map<String, ColumnData> columns = fileColumns[csvParameters.importFile.fileName]
 
-            Integer columnIndex = 0
-            columns.each {header, column ->
+            columns.eachWithIndex {header, column, columnIndex ->
                 DataType dataType = allDataTypes[header]
                 if (dataType instanceof EnumerationType && !dataModel.findDataTypeByLabel(dataType.label)) {
                     log.debug('Adding datatype with label {}', dataType.label)
@@ -174,8 +167,9 @@ class CsvDataModelImporterProviderService
                     label: header,
                     dataType: dataType,
                     minMultiplicity: column.getMinMultiplicity(),
-                    maxMultiplicity: column.getMaxMultiplicity()).tap { setIndex(columnIndex)}
-                columnIndex++
+                    maxMultiplicity: column.getMaxMultiplicity(),
+                    idx: columnIndex
+                )
                 fileClass.addToDataElements(dataElement)
                 if (csvParameters.generateSummaryMetadata) {
                     SummaryMetadata summaryMetadata = column.calculateSummaryMetadata()
@@ -244,15 +238,19 @@ class CsvDataModelImporterProviderService
     }
 
     private File newFile(File destinationDir, ZipEntry zipEntry) throws IOException {
-        File destFile = new File(destinationDir, zipEntry.getName());
+        File destFile = new File(destinationDir, zipEntry.getName())
 
-        String destDirPath = destinationDir.getCanonicalPath();
-        String destFilePath = destFile.getCanonicalPath();
+        String destDirPath = destinationDir.getCanonicalPath()
+        String destFilePath = destFile.getCanonicalPath()
 
         if (!destFilePath.startsWith(destDirPath + File.separator)) {
-            throw new IOException("Entry is outside of the target dir: " + zipEntry.getName());
+            throw new IOException("Entry is outside of the target dir: " + zipEntry.getName())
         }
 
-        return destFile;
+        return destFile
+    }
+
+    private boolean isCsvFile(String filename) {
+        filename.toLowerCase().endsWith('.csv')
     }
 }
