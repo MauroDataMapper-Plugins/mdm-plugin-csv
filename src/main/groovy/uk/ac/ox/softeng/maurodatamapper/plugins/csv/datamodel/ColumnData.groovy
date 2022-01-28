@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
+ * Copyright 2020-2022 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ class ColumnData {
 
     // for Summary Metadata
     private List<Object> typedValues = []
-    private Map<String, Integer> valueDistribution
+    private Map<String, Integer> valueDistribution = [:]
 
     ColumnData(String header, CsvDataModelImporterProviderServiceParameters options) {
         this.headerName = header
@@ -70,6 +70,10 @@ class ColumnData {
             } else {
                 optional = true
             }
+        } else {
+            if (!value) {
+                optional = true
+            }
         }
         if (distinctValues.size() < (csvImportOptions.maxEnumerations + 1) &&
             (csvImportOptions.detectEnumerations ||
@@ -82,7 +86,7 @@ class ColumnData {
             }
         }
 
-        if (csvImportOptions.generateSummaryMetadata) {
+        if (csvImportOptions.generateSummaryMetadata || csvImportOptions.detectTypes) {
             typedValues.add(typedValue)
         }
     }
