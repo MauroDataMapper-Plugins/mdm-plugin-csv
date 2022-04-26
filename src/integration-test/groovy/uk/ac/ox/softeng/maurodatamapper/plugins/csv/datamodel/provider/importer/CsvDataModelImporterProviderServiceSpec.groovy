@@ -232,11 +232,18 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
 
         dataClass.summaryMetadata.size() == 2
         dataClass.summaryMetadata.any {
-            it.label == 'id' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"0 - 10":10,"10 - 20":10,"20 - 30":10}'
+            it.label == 'id' &&
+            it.summaryMetadataType.name() == 'MAP' &&
+            it.summaryMetadataReports.first().reportValue ==
+            '{"26 - 28":10,"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - ' +
+            '10":10,"24 - 26":10}'
         }
         dataElements[0].summaryMetadata.size() == 1
         dataElements[0].summaryMetadata.any {
-            it.label == 'id' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"0 - 10":10,"10 - 20":10,"20 - 30":10}'
+            it.label == 'id' &&
+            it.summaryMetadataType.name() == 'MAP' &&
+            it.summaryMetadataReports.first().reportValue ==
+            '{"26 - 28":10,"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - 10":10,"24 - 26":10}'
         }
         dataClass.summaryMetadata.any {
             it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":21,"True":10}'
@@ -275,11 +282,17 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
 
         dataClass.summaryMetadata.size() == 2
         dataClass.summaryMetadata.any {
-            it.label == 'id' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"0 - 10":10,"10 - 20":10,"20 - 30":10}'
+            it.label == 'id' &&
+            it.summaryMetadataType.name() == 'MAP' &&
+            it.summaryMetadataReports.first().reportValue ==
+            '{"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - 10":10,"24 - 26":10}'
         }
         dataElements[0].summaryMetadata.size() == 1
         dataElements[0].summaryMetadata.any {
-            it.label == 'id' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"0 - 10":10,"10 - 20":10,"20 - 30":10}'
+            it.label == 'id' &&
+            it.summaryMetadataType.name() == 'MAP' &&
+            it.summaryMetadataReports.first().reportValue ==
+            '{"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - 10":10,"24 - 26":10}'
         }
         dataClass.summaryMetadata.any {
             it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":17,"True":10}'

@@ -36,6 +36,7 @@ import uk.ac.ox.softeng.maurodatamapper.plugins.csv.reader.CsvReader
 import uk.ac.ox.softeng.maurodatamapper.security.User
 
 import java.nio.file.Files
+import java.time.OffsetDateTime
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
@@ -68,12 +69,12 @@ class CsvDataModelImporterProviderService
     @Override
     DataModel importModel(User currentUser, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
         csvDataModelImporterProviderServiceParameters.setDefaults()
-        DataModel dataModel = importSingleFile(csvDataModelImporterProviderServiceParameters)
+        DataModel dataModel = importSingleFile(currentUser, csvDataModelImporterProviderServiceParameters)
         dataModelService.checkImportedDataModelAssociations(currentUser, dataModel)
         dataModel
     }
 
-    DataModel importSingleFile(CsvDataModelImporterProviderServiceParameters parameters) {
+    DataModel importSingleFile(User currentUser, CsvDataModelImporterProviderServiceParameters parameters) {
         log.info('Loading CSV model from {}', parameters.getImportFile().getFileName())
         String fileType = parameters.getImportFile().getFileType()
         log.info('Loading CSV model filetype {}', fileType)
@@ -146,6 +147,8 @@ class CsvDataModelImporterProviderService
         if (!importFromArchive) allColumns = fileColumns[parameters.importFile.fileName]
         Map<String, DataType> allDataTypes = allColumns.collectEntries {[it.key, it.value.getDataType(dataTypes)]}
 
+        OffsetDateTime importDateTime = OffsetDateTime.now()
+
         parametersList.each {csvParameters ->
             String className
             if (importFromArchive) className = csvParameters.importFile.fileName.take(csvParameters.importFile.fileName.lastIndexOf('.'))
@@ -172,9 +175,9 @@ class CsvDataModelImporterProviderService
                 )
                 fileClass.addToDataElements(dataElement)
                 if (csvParameters.generateSummaryMetadata) {
-                    SummaryMetadata summaryMetadata = column.calculateSummaryMetadata()
+                    SummaryMetadata summaryMetadata = column.calculateSummaryMetadata(currentUser, importDateTime)
                     if (summaryMetadata) {
-                        SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata()
+                        SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata(currentUser, importDateTime)
                         dataElement.addToSummaryMetadata(summaryMetadata)
                         fileClass.addToSummaryMetadata(dcSummaryMetadata)
                     }
