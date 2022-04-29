@@ -21,11 +21,12 @@ import uk.ac.ox.softeng.maurodatamapper.datamodel.facet.SummaryMetadata
 import uk.ac.ox.softeng.maurodatamapper.datamodel.item.datatype.DataType
 import uk.ac.ox.softeng.maurodatamapper.datamodel.item.datatype.EnumerationType
 import uk.ac.ox.softeng.maurodatamapper.datamodel.item.datatype.enumeration.EnumerationValue
+import uk.ac.ox.softeng.maurodatamapper.datamodel.summarymetadata.DateIntervalHelper
+import uk.ac.ox.softeng.maurodatamapper.datamodel.summarymetadata.DecimalIntervalHelper
+import uk.ac.ox.softeng.maurodatamapper.datamodel.summarymetadata.IntegerIntervalHelper
+import uk.ac.ox.softeng.maurodatamapper.datamodel.summarymetadata.SummaryMetadataHelper
 import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer.parameter.CsvDataModelImporterProviderServiceParameters
-import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.summarymetadata.DateIntervalHelper
-import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.summarymetadata.DecimalIntervalHelper
-import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.summarymetadata.IntegerIntervalHelper
-import uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.summarymetadata.SummaryMetadataHelper
+import uk.ac.ox.softeng.maurodatamapper.security.User
 
 import grails.util.Pair
 import groovy.util.logging.Slf4j
@@ -33,6 +34,7 @@ import org.apache.commons.lang3.time.DateUtils
 
 import java.time.Instant
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.time.ZoneId
 
 @Slf4j
@@ -151,7 +153,7 @@ class ColumnData {
         'String'
     }
 
-    SummaryMetadata calculateSummaryMetadata() {
+    SummaryMetadata calculateSummaryMetadata(User currentUser, OffsetDateTime calculationDateTime) {
 
         if (decideDataType() == 'Date') {
             calculateDateSummaryMetadata()
@@ -177,7 +179,7 @@ class ColumnData {
             }
             hideSmallValues(csvImportOptions.smallestSummaryValue)
         }
-        return SummaryMetadataHelper.createSummaryMetadataFromMap(headerName, 'Value Distribution', valueDistribution)
+        return SummaryMetadataHelper.createSummaryMetadataFromMap(currentUser, headerName, 'Value Distribution', calculationDateTime, valueDistribution)
 
     }
 

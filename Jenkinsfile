@@ -53,6 +53,18 @@ pipeline {
             }
         }
 
+        stage('Unit Test') {
+
+            steps {
+                sh "./gradlew --build-cache test"
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'build/test-results/test/*.xml'
+                }
+            }
+        }
+
         stage('Integration Test') {
 
             steps {
@@ -97,7 +109,7 @@ pipeline {
             }
             steps {
                 script {
-                    sh "./gradlew artifactoryPublish"
+                    sh "./gradlew publish"
                 }
             }
         }
