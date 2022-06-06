@@ -85,7 +85,7 @@ class CsvDataModelImporterProviderService
         log.info('Loading CSV model filetype {}', fileType)
 
         String modelName = parameters.importFile.fileName.take(parameters.importFile.fileName.lastIndexOf('.'))
-        DataModel dataModel = new DataModel(label: modelName, modelType: DataModelType.DATA_ASSET, authority: authorityService.defaultAuthority)
+        DataModel dataModel = new DataModel(label: modelName, type: DataModelType.DATA_ASSET, authority: authorityService.defaultAuthority)
 
         Map<String, DataType> dataTypes = getPrimitiveDataTypes(parameters)
         dataTypes.each {k, dt ->
