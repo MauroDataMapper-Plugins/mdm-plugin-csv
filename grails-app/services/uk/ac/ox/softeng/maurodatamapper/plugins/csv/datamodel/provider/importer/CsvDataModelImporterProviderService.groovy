@@ -62,6 +62,11 @@ class CsvDataModelImporterProviderService
     }
 
     @Override
+    Boolean handlesContentType(String contentType) {
+        contentType.equalsIgnoreCase('text/csv')
+    }
+
+    @Override
     List<DataModel> importModels(User currentUser, CsvDataModelImporterProviderServiceParameters csvDataModelImporterProviderServiceParameters) {
         throw new ApiNotYetImplementedException('CSV01', 'importModels')
     }
