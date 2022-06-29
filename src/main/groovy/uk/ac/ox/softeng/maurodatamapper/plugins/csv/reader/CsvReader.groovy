@@ -64,7 +64,7 @@ class CsvReader {
             throw new IOException(String.format(
                 ResourceBundle.getBundle(ICSVParser.DEFAULT_BUNDLE_NAME, Locale.getDefault())
                     .getString("header.data.mismatch.with.line.number"),
-                reader.getRecordsRead()))
+                reader.getRecordsRead(), headerIndex.size(), strings.length))
         }
         headerIndex.findAll { key, index -> index < strings.length }.collectEntries { key, index ->
             [key, strings[index]]

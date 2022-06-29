@@ -17,6 +17,7 @@
  */
 package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer
 
+import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiBadRequestException
 import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiNotYetImplementedException
 import uk.ac.ox.softeng.maurodatamapper.core.authority.AuthorityService
 import uk.ac.ox.softeng.maurodatamapper.core.model.CatalogueItem
@@ -81,11 +82,6 @@ class CsvDataModelImporterProviderService
         dataModel
     }
 
-    @Override
-    Boolean handlesContentType(String contentType) {
-        contentType.equalsIgnoreCase('text/csv')
-    }
-
     DataModel importMultipleFiles(User currentUser, List<CsvDataModelImporterProviderServiceParameters> parametersList, String label) {
         DataModel dataModel = new DataModel(label: label, modelType: DataModelType.DATA_ASSET.label, authority: authorityService.defaultAuthority)
 
@@ -101,22 +97,20 @@ class CsvDataModelImporterProviderService
 
             List<String> pathNames = Path.of(removeFileNameSuffix(csvParameters.importFile.fileName, 'csv')).findAll {it}.collect {it.toString()}
             DataClass fileClass = new DataClass(label: pathNames[-1])
-            if (!pathNames[-1]) log.error('!! pathNames[-1] is null')
             CatalogueItem classParent = dataModel
-            log.warn('pathNames = {}', pathNames.toString())
+            log.debug('CSV path names = {}', pathNames.toString())
             pathNames.eachWithIndex {name, i ->
                 if (i == pathNames.size() - 1) {
-                    if (classParent.dataClasses.find {it.label == fileClass.label}) log.error('1 Duplicate class! [{}] [{}]', pathNames.toString(), fileClass.label)
+                    if (classParent.dataClasses.find {it.label == fileClass.label}) log.error('Found duplicate class [{}], with path [{}]', fileClass.label, pathNames.toString())
                     classParent.addToDataClasses(fileClass)
                 } else {
                     DataClass parentClass = (classParent instanceof DataModel ? classParent.childDataClasses : classParent.dataClasses).find {it.label == name}
                     if (parentClass) {
                         classParent = parentClass
                     } else {
-                        if (!name) log.error('!! name is null')
                         DataClass intermediateClass = new DataClass(label: name, index: parametersIndex)
                         if (classParent.dataClasses.find {it.label == intermediateClass.label})
-                            log.error('2 Duplicate class! [{}] [{}]', pathNames.toString(), intermediateClass.label)
+                            log.error('Found duplicate intermediate class [{}], with path [{}]', fileClass.label, pathNames.toString())
                         classParent.addToDataClasses(intermediateClass)
                         classParent = intermediateClass
                     }
@@ -210,6 +204,9 @@ class CsvDataModelImporterProviderService
             zis.closeEntry()
             zis.close()
         } else {
+            if (!parameters.firstRowIsHeader && !parameters.headers) {
+                throw new ApiBadRequestException('CSVDMI01', 'Headers field must be present or first row must be used as header')
+            }
             parameters.importFile.fileName = 'CSV fields'
             parametersList << parameters
         }
