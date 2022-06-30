@@ -83,7 +83,7 @@ class CsvDataModelImporterProviderService
     }
 
     DataModel importMultipleFiles(User currentUser, List<CsvDataModelImporterProviderServiceParameters> parametersList, String label) {
-        DataModel dataModel = new DataModel(label: label, modelType: DataModelType.DATA_ASSET.label, authority: authorityService.defaultAuthority)
+        DataModel dataModel = new DataModel(label: label, type: DataModelType.DATA_ASSET.label, authority: authorityService.defaultAuthority)
 
         Map<String, DataType> dataTypes = getPrimitiveDataTypes(parametersList)
         dataTypes.each {k, dt ->

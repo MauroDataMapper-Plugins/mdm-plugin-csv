@@ -42,6 +42,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
+import static org.junit.Assert.assertTrue
+
 @Slf4j
 @Integration
 @Rollback
@@ -211,96 +213,8 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
         dataModel.dataTypes.size() == 9
         dataModel.dataClasses.size() == 2
 
-        when:
-        DataClass dataClass = dataModel.dataClasses.find {it.label == 'english'}
-        List<DataElement> dataElements = dataClass.getDataElements().sort()
-
-        then:
-        dataElements.size() == 3
-        dataElements[0].label == 'id'
-        dataElements[0].dataType.label == 'Number'
-        dataElements[0].minMultiplicity == 1
-        dataElements[0].maxMultiplicity == 1
-        dataElements[1].label == 'english_letter'
-        dataElements[1].dataType.label == 'Text'
-        dataElements[1].minMultiplicity == 1
-        dataElements[1].maxMultiplicity == 1
-        dataElements[2].label == 'is_vowel'
-        dataElements[2].dataType.label == 'is_vowel'
-        dataElements[2].minMultiplicity == 1
-        dataElements[2].maxMultiplicity == 1
-
-        dataClass.summaryMetadata.size() == 2
-        dataClass.summaryMetadata.any {
-            it.label == 'id' &&
-            it.summaryMetadataType.name() == 'MAP' &&
-            it.summaryMetadataReports.first().reportValue ==
-            '{"26 - 28":10,"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - ' +
-            '10":10,"24 - 26":10}'
-        }
-        dataElements[0].summaryMetadata.size() == 1
-        dataElements[0].summaryMetadata.any {
-            it.label == 'id' &&
-            it.summaryMetadataType.name() == 'MAP' &&
-            it.summaryMetadataReports.first().reportValue ==
-            '{"26 - 28":10,"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - 10":10,"24 - 26":10}'
-        }
-        dataClass.summaryMetadata.any {
-            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":21,"True":10}'
-        }
-        dataElements[2].summaryMetadata.size() == 1
-        dataElements[2].summaryMetadata.any {
-            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":21,"True":10}'
-        }
-
-        when:
-        dataClass = dataModel.dataClasses.find{it.label == 'greek'}
-        dataElements = dataClass.getDataElements().sort()
-
-        then:
-        dataElements.size() == 4
-        dataElements[0].label == 'id'
-        dataElements[0].dataType.label == 'Number'
-        dataElements[0].minMultiplicity == 1
-        dataElements[0].maxMultiplicity == 1
-        dataElements[1].label == 'greek_letter'
-        dataElements[1].dataType.label == 'Text'
-        dataElements[1].minMultiplicity == 1
-        dataElements[1].maxMultiplicity == 1
-        dataElements[2].label == 'english_letter'
-        dataElements[2].dataType.label == 'Text'
-        dataElements[2].minMultiplicity == 0
-        dataElements[2].maxMultiplicity == 1
-        dataElements[3].label == 'is_vowel'
-        dataElements[3].dataType.label == 'is_vowel'
-        dataElements[3].dataType instanceof EnumerationType
-        dataElements[3].dataType.enumerationValues.size() == 2
-        dataElements[3].dataType.findEnumerationValueByKey('True')
-        dataElements[3].dataType.findEnumerationValueByKey('False')
-        dataElements[3].minMultiplicity == 1
-        dataElements[3].maxMultiplicity == 1
-
-        dataClass.summaryMetadata.size() == 2
-        dataClass.summaryMetadata.any {
-            it.label == 'id' &&
-            it.summaryMetadataType.name() == 'MAP' &&
-            it.summaryMetadataReports.first().reportValue ==
-            '{"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - 10":10,"24 - 26":10}'
-        }
-        dataElements[0].summaryMetadata.size() == 1
-        dataElements[0].summaryMetadata.any {
-            it.label == 'id' &&
-            it.summaryMetadataType.name() == 'MAP' &&
-            it.summaryMetadataReports.first().reportValue ==
-            '{"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - 10":10,"24 - 26":10}'
-        }
-        dataClass.summaryMetadata.any {
-            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":17,"True":10}'
-        }
-        dataElements[3].summaryMetadata.size() == 1
-        dataElements[3].summaryMetadata.any {
-            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":17,"True":10}'
-        }
+        and:
+        verifyAlphabetsDataClassesWithTypesAndSummaryMetadata(dataModel)
     }
 
     def 'Test importing alphabets.zip without type detection or summary metadata'() {
@@ -369,6 +283,36 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
         dataClass.summaryMetadata.size() == 0
     }
 
+    void 'Test importing csv-tree.zip with type detection and summary metadata'() {
+        given:
+        setupDomainData()
+
+        CsvDataModelImporterProviderServiceParameters parameters = new CsvDataModelImporterProviderServiceParameters(
+            importFile: new FileParameter('csv-tree.zip', 'application/zip', loadBytes('csv-tree.zip')),
+            folderId: folder.id
+        )
+        when:
+        DataModel dataModel = importAndValidateModel('csv-tree', parameters)
+        dataModel = dataModelService.saveModelWithContent(dataModel)
+
+        then:
+        dataModel.dataTypes.size() == 9
+        dataModel.dataClasses.size() == 5
+        dataModel.childDataClasses.size() == 1
+        DataClass mainClass = dataModel.childDataClasses.first()
+        mainClass.label == 'csv-tree'
+        mainClass.dataClasses.first().label == 'simple'
+        mainClass.dataClasses.last().label == 'alphabets'
+
+        and:
+        DataClass simpleClass = mainClass.dataClasses.first()
+        simpleClass.dataElements.size() == 2
+        simpleClass.dataElements.any {it.label == 'Name' && it.dataType.label == 'Text'}
+        simpleClass.dataElements.any {it.label == 'Age' && it.dataType.label == 'Number'}
+
+        and:
+        verifyAlphabetsDataClassesWithTypesAndSummaryMetadata(dataModel)
+    }
 
     byte[] loadBytes(String filename) {
         Path testFilePath = resourcesPath.resolve("${filename}").toAbsolutePath()
@@ -387,5 +331,94 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
             throw new ValidationException("Domain object is not valid. Has ${dataModel.errors.errorCount} errors", dataModel.errors)
         }
         dataModel
+    }
+
+    private void verifyAlphabetsDataClassesWithTypesAndSummaryMetadata(DataModel dataModel) {
+        DataClass dataClass = dataModel.dataClasses.find {it.label == 'english'}
+        List<DataElement> dataElements = dataClass.getDataElements().sort()
+
+        assertTrue dataElements.size() == 3
+        assertTrue dataElements[0].label == 'id'
+        assertTrue dataElements[0].dataType.label == 'Number'
+        assertTrue dataElements[0].minMultiplicity == 1
+        assertTrue dataElements[0].maxMultiplicity == 1
+        assertTrue dataElements[1].label == 'english_letter'
+        assertTrue dataElements[1].dataType.label == 'Text'
+        assertTrue dataElements[1].minMultiplicity == 1
+        assertTrue dataElements[1].maxMultiplicity == 1
+        assertTrue dataElements[2].label == 'is_vowel'
+        assertTrue dataElements[2].dataType.label == 'is_vowel'
+        assertTrue dataElements[2].minMultiplicity == 1
+        assertTrue dataElements[2].maxMultiplicity == 1
+
+        assertTrue dataClass.summaryMetadata.size() == 2
+        assertTrue dataClass.summaryMetadata.any {
+            it.label == 'id' &&
+            it.summaryMetadataType.name() == 'MAP' &&
+            it.summaryMetadataReports.first().reportValue ==
+            '{"26 - 28":10,"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - ' +
+            '10":10,"24 - 26":10}'
+        }
+        assertTrue dataElements[0].summaryMetadata.size() == 1
+        assertTrue dataElements[0].summaryMetadata.any {
+            it.label == 'id' &&
+            it.summaryMetadataType.name() == 'MAP' &&
+            it.summaryMetadataReports.first().reportValue ==
+            '{"26 - 28":10,"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - 10":10,"24 - 26":10}'
+        }
+        assertTrue dataClass.summaryMetadata.any {
+            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":21,"True":10}'
+        }
+        assertTrue dataElements[2].summaryMetadata.size() == 1
+        assertTrue dataElements[2].summaryMetadata.any {
+            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":21,"True":10}'
+        }
+
+        dataClass = dataModel.dataClasses.find{it.label == 'greek'}
+        dataElements = dataClass.getDataElements().sort()
+
+        assertTrue dataElements.size() == 4
+        assertTrue dataElements[0].label == 'id'
+        assertTrue dataElements[0].dataType.label == 'Number'
+        assertTrue dataElements[0].minMultiplicity == 1
+        assertTrue dataElements[0].maxMultiplicity == 1
+        assertTrue dataElements[1].label == 'greek_letter'
+        assertTrue dataElements[1].dataType.label == 'Text'
+        assertTrue dataElements[1].minMultiplicity == 1
+        assertTrue dataElements[1].maxMultiplicity == 1
+        assertTrue dataElements[2].label == 'english_letter'
+        assertTrue dataElements[2].dataType.label == 'Text'
+        assertTrue dataElements[2].minMultiplicity == 0
+        assertTrue dataElements[2].maxMultiplicity == 1
+        assertTrue dataElements[3].label == 'is_vowel'
+        assertTrue dataElements[3].dataType.label == 'is_vowel'
+        assertTrue dataElements[3].dataType instanceof EnumerationType
+        assertTrue dataElements[3].dataType.enumerationValues.size() == 2
+        assertTrue dataElements[3].dataType.findEnumerationValueByKey('True') as boolean
+        assertTrue dataElements[3].dataType.findEnumerationValueByKey('False') as boolean
+        assertTrue dataElements[3].minMultiplicity == 1
+        assertTrue dataElements[3].maxMultiplicity == 1
+
+        assertTrue dataClass.summaryMetadata.size() == 2
+        assertTrue dataClass.summaryMetadata.any {
+            it.label == 'id' &&
+            it.summaryMetadataType.name() == 'MAP' &&
+            it.summaryMetadataReports.first().reportValue ==
+            '{"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - 10":10,"24 - 26":10}'
+        }
+        assertTrue dataElements[0].summaryMetadata.size() == 1
+        assertTrue dataElements[0].summaryMetadata.any {
+            it.label == 'id' &&
+            it.summaryMetadataType.name() == 'MAP' &&
+            it.summaryMetadataReports.first().reportValue ==
+            '{"10 - 12":10,"20 - 22":10,"12 - 14":10,"14 - 16":10,"18 - 20":10,"6 - 8":10,"22 - 24":10,"16 - 18":10,"0 - 2":10,"2 - 4":10,"4 - 6":10,"8 - 10":10,"24 - 26":10}'
+        }
+        assertTrue dataClass.summaryMetadata.any {
+            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":17,"True":10}'
+        }
+        assertTrue dataElements[3].summaryMetadata.size() == 1
+        assertTrue dataElements[3].summaryMetadata.any {
+            it.label == 'is_vowel' && it.summaryMetadataType.name() == 'MAP' && it.summaryMetadataReports.first().reportValue == '{"False":17,"True":10}'
+        }
     }
 }
