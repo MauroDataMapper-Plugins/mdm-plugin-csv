@@ -46,8 +46,8 @@ import java.util.zip.ZipInputStream
 class CsvDataModelImporterProviderService
     extends DataModelImporterProviderService<CsvDataModelImporterProviderServiceParameters> {
 
-    static AuthorityService authorityService
-    static DataTypeService dataTypeService
+    AuthorityService authorityService
+    DataTypeService dataTypeService
 
     @Override
     String getDisplayName() {
