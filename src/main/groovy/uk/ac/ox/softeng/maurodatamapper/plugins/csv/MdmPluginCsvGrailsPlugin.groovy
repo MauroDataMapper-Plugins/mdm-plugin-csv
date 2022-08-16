@@ -58,8 +58,13 @@ Loads CSV files into DataModel format
     // Online location of the plugin's browseable source code.
     def scm = [url: "https://github.com/mauroDataMapper-Plugins/mdm-plugin-csv"]
 
+    def dependsOn = [
+        mdmCore           : '5.1.0 > *',
+        mdmPluginDatamodel: '5.1.0 > *',
+    ]
+
     Closure doWithSpring() {
-        { ->
+        {->
         }
     }
 

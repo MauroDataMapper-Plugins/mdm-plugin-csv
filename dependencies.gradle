@@ -6,8 +6,8 @@ dependencies {
 
     testImplementation group: 'uk.ac.ox.softeng.maurodatamapper', name: 'mdm-testing-framework', version: mdmCoreVersion
 
-    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.11'
-    implementation 'com.opencsv:opencsv:5.1'
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
+    implementation 'com.opencsv:opencsv:5.6'
 
     // Postgres database
     runtimeOnly group: 'org.flywaydb', name: 'flyway-core'
