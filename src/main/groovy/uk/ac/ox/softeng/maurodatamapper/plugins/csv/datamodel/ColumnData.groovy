@@ -115,8 +115,9 @@ class ColumnData {
     DataType getEnumeratedDataType() {
         EnumerationType enumerationType = new EnumerationType(label: headerName)
         distinctValues.keySet().sort().each {value ->
-            if (value) {
-                enumerationType.addToEnumerationValues(new EnumerationValue(key: value, value: value))
+            String cleaned = value.toString().replace('$', '[dollar]').replace('@', '[at]').replace('|', '[vbar]').strip()
+            if (cleaned) {
+                enumerationType.addToEnumerationValues(new EnumerationValue(key: cleaned, value: cleaned))
             }
         }
         return enumerationType

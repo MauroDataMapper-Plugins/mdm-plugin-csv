@@ -17,8 +17,10 @@
  */
 package uk.ac.ox.softeng.maurodatamapper.plugins.csv.datamodel.provider.importer
 
+import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiBadRequestException
 import uk.ac.ox.softeng.maurodatamapper.api.exception.ApiNotYetImplementedException
 import uk.ac.ox.softeng.maurodatamapper.core.authority.AuthorityService
+import uk.ac.ox.softeng.maurodatamapper.core.model.CatalogueItem
 import uk.ac.ox.softeng.maurodatamapper.core.provider.importer.parameter.FileParameter
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModel
 import uk.ac.ox.softeng.maurodatamapper.datamodel.DataModelType
@@ -36,6 +38,7 @@ import uk.ac.ox.softeng.maurodatamapper.plugins.csv.reader.CsvReader
 import uk.ac.ox.softeng.maurodatamapper.security.User
 
 import java.nio.file.Files
+import java.nio.file.Path
 import java.time.OffsetDateTime
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -79,25 +82,82 @@ class CsvDataModelImporterProviderService
         dataModel
     }
 
+    DataModel importMultipleFiles(User currentUser, List<CsvDataModelImporterProviderServiceParameters> parametersList, String label) {
+        DataModel dataModel = new DataModel(label: label, type: DataModelType.DATA_ASSET.label, authority: authorityService.defaultAuthority)
+
+        Map<String, DataType> dataTypes = getPrimitiveDataTypes(parametersList)
+        dataTypes.each {k, dt ->
+            dataModel.addToDataTypes(dt)
+        }
+
+        def (Map<String, ColumnData> allColumns, Map<String, Map<String, ColumnData>> fileColumns) = getColumnDefinitions(parametersList, true)
+        Map<String, DataType> allDataTypes = allColumns.collectEntries {[it.key, it.value.getDataType(dataTypes)]}
+
+        parametersList.eachWithIndex {csvParameters, parametersIndex ->
+
+            List<String> pathNames = Path.of(removeFileNameSuffix(csvParameters.importFile.fileName, 'csv')).findAll {it}.collect {it.toString()}
+            DataClass fileClass = new DataClass(label: pathNames[-1])
+            CatalogueItem classParent = dataModel
+            log.debug('CSV path names = {}', pathNames.toString())
+            pathNames.eachWithIndex {name, i ->
+                if (i == pathNames.size() - 1) {
+                    if (classParent.dataClasses.find {it.label == fileClass.label}) log.error('Found duplicate class [{}], with path [{}]', fileClass.label, pathNames.toString())
+                    classParent.addToDataClasses(fileClass)
+                } else {
+                    DataClass parentClass = (classParent instanceof DataModel ? classParent.childDataClasses : classParent.dataClasses).find {it.label == name}
+                    if (parentClass) {
+                        classParent = parentClass
+                    } else {
+                        DataClass intermediateClass = new DataClass(label: name, index: parametersIndex)
+                        if (classParent.dataClasses.find {it.label == intermediateClass.label})
+                            log.error('Found duplicate intermediate class [{}], with path [{}]', fileClass.label, pathNames.toString())
+                        classParent.addToDataClasses(intermediateClass)
+                        classParent = intermediateClass
+                    }
+                }
+            }
+
+            Map<String, ColumnData> columns = fileColumns[csvParameters.importFile.fileName]
+
+            columns.eachWithIndex {header, column, columnIndex ->
+                DataType dataType = allDataTypes[header]
+                if (dataType instanceof EnumerationType && !dataModel.findDataTypeByLabel(dataType.label)) {
+                    log.debug('Adding datatype with label {}', dataType.label)
+                    dataModel.addToDataTypes(dataType)
+                }
+                if (!dataType) log.warn('Unknown datatype {}', column.decideDataType())
+                DataElement dataElement = new DataElement(
+                    label: header,
+                    dataType: dataType,
+                    minMultiplicity: column.getMinMultiplicity(),
+                    maxMultiplicity: column.getMaxMultiplicity(),
+                    idx: columnIndex
+                )
+                fileClass.addToDataElements(dataElement)
+                if (csvParameters.generateSummaryMetadata) {
+                    SummaryMetadata summaryMetadata = column.calculateSummaryMetadata(currentUser, OffsetDateTime.now())
+                    if (summaryMetadata) {
+                        SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata(currentUser, OffsetDateTime.now())
+                        dataElement.addToSummaryMetadata(summaryMetadata)
+                        fileClass.addToSummaryMetadata(dcSummaryMetadata)
+                    }
+                }
+            }
+        }
+
+        dataModel
+    }
+
     DataModel importSingleFile(User currentUser, CsvDataModelImporterProviderServiceParameters parameters) {
         log.info('Loading CSV model from {}', parameters.getImportFile().getFileName())
         String fileType = parameters.getImportFile().getFileType()
         log.info('Loading CSV model filetype {}', fileType)
 
-        String modelName = parameters.importFile.fileName.take(parameters.importFile.fileName.lastIndexOf('.'))
-        DataModel dataModel = new DataModel(label: modelName, modelType: DataModelType.DATA_ASSET, authority: authorityService.defaultAuthority)
-
-        Map<String, DataType> dataTypes = getPrimitiveDataTypes(parameters)
-        dataTypes.each {k, dt ->
-            dataModel.addToDataTypes(dt)
-        }
-
-        Boolean importFromArchive = false
+        String modelName = removeFileNameSuffix(removeFileNameSuffix(parameters.importFile.fileName, 'zip'), 'csv')
 
         List<CsvDataModelImporterProviderServiceParameters> parametersList = []
 
         if (fileType == "application/zip" || fileType == "application/x-zip-compressed") {
-            importFromArchive = true
             log.info('Loading Zip File')
 
             if (!parameters.firstRowIsHeader) {
@@ -144,53 +204,14 @@ class CsvDataModelImporterProviderService
             zis.closeEntry()
             zis.close()
         } else {
+            if (!parameters.firstRowIsHeader && !parameters.headers) {
+                throw new ApiBadRequestException('CSVDMI01', 'Headers field must be present or first row must be used as header')
+            }
+            parameters.importFile.fileName = 'CSV fields'
             parametersList << parameters
         }
 
-        def (Map<String, ColumnData> allColumns, Map<String, Map<String, ColumnData>> fileColumns) = getColumnDefinitions(parametersList, importFromArchive)
-
-        if (!importFromArchive) allColumns = fileColumns[parameters.importFile.fileName]
-        Map<String, DataType> allDataTypes = allColumns.collectEntries {[it.key, it.value.getDataType(dataTypes)]}
-
-        OffsetDateTime importDateTime = OffsetDateTime.now()
-
-        parametersList.each {csvParameters ->
-            String className
-            if (importFromArchive) className = csvParameters.importFile.fileName.take(csvParameters.importFile.fileName.lastIndexOf('.'))
-            else className = 'CSV fields'
-
-            DataClass fileClass = new DataClass(label: className)
-            dataModel.addToDataClasses(fileClass)
-
-            Map<String, ColumnData> columns = fileColumns[csvParameters.importFile.fileName]
-
-            columns.eachWithIndex {header, column, columnIndex ->
-                DataType dataType = allDataTypes[header]
-                if (dataType instanceof EnumerationType && !dataModel.findDataTypeByLabel(dataType.label)) {
-                    log.debug('Adding datatype with label {}', dataType.label)
-                    dataModel.addToDataTypes(dataType)
-                }
-                if (!dataType) log.warn('Unknown datatype {}', column.decideDataType())
-                DataElement dataElement = new DataElement(
-                    label: header,
-                    dataType: dataType,
-                    minMultiplicity: column.getMinMultiplicity(),
-                    maxMultiplicity: column.getMaxMultiplicity(),
-                    idx: columnIndex
-                )
-                fileClass.addToDataElements(dataElement)
-                if (csvParameters.generateSummaryMetadata) {
-                    SummaryMetadata summaryMetadata = column.calculateSummaryMetadata(currentUser, importDateTime)
-                    if (summaryMetadata) {
-                        SummaryMetadata dcSummaryMetadata = column.calculateSummaryMetadata(currentUser, importDateTime)
-                        dataElement.addToSummaryMetadata(summaryMetadata)
-                        fileClass.addToSummaryMetadata(dcSummaryMetadata)
-                    }
-                }
-            }
-        }
-
-        dataModel
+        importMultipleFiles(currentUser, parametersList, modelName)
     }
 
     Tuple2<Map<String, ColumnData>, Map<String, Map<String, ColumnData>>> getColumnDefinitions(List<CsvDataModelImporterProviderServiceParameters> csvParametersList,
@@ -235,14 +256,18 @@ class CsvDataModelImporterProviderService
         new Tuple2(allColumns, fileColumns)
     }
 
-    Map<String, DataType> getPrimitiveDataTypes(CsvDataModelImporterProviderServiceParameters parameters) {
+    Map<String, DataType> getPrimitiveDataTypes(List<CsvDataModelImporterProviderServiceParameters> parametersList) {
         Map<String, DataType> types = dataTypeService.defaultListOfDataTypes.collectEntries {
             [it.label, new PrimitiveType(label: it.label, description: it.description)]
         }
         types.Integer = types.Number
         types.BigDecimal = types.Decimal
         types.String = types.Text
-        parameters.detectTypes ? types : [String: types.String]
+        parametersList.any {it.detectTypes} ? types : [String: types.String]
+    }
+
+    Map<String, DataType> getPrimitiveDataTypes(CsvDataModelImporterProviderServiceParameters parameters) {
+        getPrimitiveDataTypes([parameters])
     }
 
     private File newFile(File destinationDir, ZipEntry zipEntry) throws IOException {
@@ -259,6 +284,14 @@ class CsvDataModelImporterProviderService
     }
 
     private boolean isCsvFile(String filename) {
-        filename.toLowerCase().endsWith('.csv')
+        filename.endsWithIgnoreCase('.csv')
+    }
+
+    private String removeFileNameSuffix(String fileName, String suffix) {
+        if (fileName.endsWithIgnoreCase('.' + suffix)) {
+            fileName.take(fileName.lastIndexOf('.' + suffix))
+        } else {
+            fileName
+        }
     }
 }
