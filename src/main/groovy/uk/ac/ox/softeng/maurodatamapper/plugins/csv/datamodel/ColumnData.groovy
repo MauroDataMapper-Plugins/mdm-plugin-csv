@@ -88,7 +88,7 @@ class ColumnData {
             }
         }
 
-        if (csvImportOptions.generateSummaryMetadata || csvImportOptions.detectTypes) {
+        if (csvImportOptions.generateSummaryMetadata) {
             typedValues.add(typedValue)
         }
     }
