@@ -301,11 +301,12 @@ class CsvDataModelImporterProviderServiceSpec extends BaseIntegrationSpec {
         dataModel.childDataClasses.size() == 1
         DataClass mainClass = dataModel.childDataClasses.first()
         mainClass.label == 'csv-tree'
-        mainClass.dataClasses.first().label == 'simple'
-        mainClass.dataClasses.last().label == 'alphabets'
+        List<DataClass> sortedDataClasses = mainClass.dataClasses.sort()
+        sortedDataClasses.first().label == 'alphabets'
+        sortedDataClasses.last().label == 'simple'
 
         and:
-        DataClass simpleClass = mainClass.dataClasses.first()
+        DataClass simpleClass = sortedDataClasses.last()
         simpleClass.dataElements.size() == 2
         simpleClass.dataElements.any {it.label == 'Name' && it.dataType.label == 'Text'}
         simpleClass.dataElements.any {it.label == 'Age' && it.dataType.label == 'Number'}
