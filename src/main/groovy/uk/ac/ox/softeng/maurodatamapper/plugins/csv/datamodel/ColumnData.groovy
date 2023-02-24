@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 University of Oxford and Health and Social Care Information Centre, also known as NHS Digital
+ * Copyright 2020-2023 University of Oxford and NHS England
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ class ColumnData {
             }
         }
 
-        if (csvImportOptions.generateSummaryMetadata || csvImportOptions.detectTypes) {
+        if (csvImportOptions.generateSummaryMetadata) {
             typedValues.add(typedValue)
         }
     }
@@ -115,8 +115,9 @@ class ColumnData {
     DataType getEnumeratedDataType() {
         EnumerationType enumerationType = new EnumerationType(label: headerName)
         distinctValues.keySet().sort().each {value ->
-            if (value) {
-                enumerationType.addToEnumerationValues(new EnumerationValue(key: value, value: value))
+            String cleaned = value.toString().replace('$', '[dollar]').replace('@', '[at]').replace('|', '[vbar]').strip()
+            if (cleaned) {
+                enumerationType.addToEnumerationValues(new EnumerationValue(key: cleaned, value: cleaned))
             }
         }
         return enumerationType
